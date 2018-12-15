@@ -1,0 +1,19 @@
+{
+  "name": "doqr",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./cli.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "doqr": "./cli.js"
+  },
+  "author": "Erlend Oftedal <erlend@oftedal.no>",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^2.19.0",
+    "fs-extra": "^7.0.1",
+    "tar": "^4.4.8"
+  }
+}
