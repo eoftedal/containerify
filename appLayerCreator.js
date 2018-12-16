@@ -84,7 +84,7 @@ async function addDataLayer(tmpdir, todir, options, config, layers, files, comme
   config.rootfs.diff_ids.push('sha256:' + dhash);
   config.history.push({
     created: new Date().toISOString(),
-    created_by: 'nib',
+    created_by: 'doqr',
     comment: comment
   });
 }
