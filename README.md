@@ -10,9 +10,9 @@ npm install -g doqr
 
 ## How to use
 
-This pull the ´node:10-alpine` image from Docker hub, build the image by adding the application from `src/`, and push the result to the given registry.
+This pull the `node:10-alpine` image from Docker hub, build the image by adding the application from `src/`, and push the result to the given registry.
 
-``
+```
 doqr --fromImage node:10-alpine --folder src/ --toImage myapp:latest --toRegistry https://registry.example.com/v2/
 ```
 
