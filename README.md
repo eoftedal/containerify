@@ -17,6 +17,7 @@ doqr --fromImage node:10-alpine --folder src/ --toImage myapp:latest --toRegistr
 ```
 
 ### Command line options 
+```
 Usage: doqr [options]
 
 Options:
