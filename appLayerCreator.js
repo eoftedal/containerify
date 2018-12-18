@@ -107,6 +107,13 @@ function parseCommandLineToParts(entrypoint) {
     .filter(a => a != '');
 }
 
+function splitLabelsIntoObject(labelsString) {
+  console.log(labelsString);
+  let labels = {};
+  labelsString.split(',').map(l => l.split('=')).map(l => labels[l[0]] = l[1]);
+  return labels;
+}
+
 async function addAppLayers(options, config, todir, manifest, tmpdir) {
   addEmptyLayer(config, `WORKDIR ${options.workdir}`, config => config.config.WorkingDir = options.workdir);
   let entrypoint = parseCommandLineToParts(options.entrypoint);
@@ -115,6 +122,13 @@ async function addAppLayers(options, config, todir, manifest, tmpdir) {
     config.config.user = options.user;
     config.container_config.user = options.user;
   });
+  if (options.labels) {
+    let labels = splitLabelsIntoObject(options.labels);
+    addEmptyLayer(config, `LABELS ${options.labels}`, config => {
+      config.config.labels = labels;
+      config.container_config.labels = labels;
+    });
+  }
 
   let appFiles = await fs.readdir(options.folder);
   let depLayerContent = appFiles.filter(l => depLayerPossibles.includes(l));

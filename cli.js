@@ -15,19 +15,20 @@ const logger = require('./logger');
 
 
 const possibleArgs = {
-  '--fromRegistry <registry url>' : 'Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/',
   '--fromImage <name:tag>'        : 'Required: Image name of base image - [path/]image:tag',
+  '--toImage <name:tag>'          : 'Required: Image name of target image - [path/]image:tag',
+  '--folder <full path>'          : 'Required: Base folder of node application (contains package.json)',
+  '--fromRegistry <registry url>' : 'Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/',
   '--fromToken <token>'           : 'Optional: Authentication token for from registry',
   '--toRegistry <registry url>'   : 'Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/',
-  '--toImage <name:tag>'          : 'Required: Image name of target image - [path/]image:tag',
   '--toToken <token>'             : 'Optional: Authentication token for target registry',
   '--toTar <path>'                : 'Optional: Export to tar file',
   '--registry <path>'             : 'Optional: Convenience argument for setting both from and to registry',
   '--token <path>'                : 'Optional: Convenience argument for setting token for both from and to registry',
-  '--folder <full path>'          : 'Required: Base folder of node application (contains package.json)',
   '--user <user>'                 : 'Optional: User account to run process in container - default: 1000',
   '--workdir <directory>'         : 'Optional: Workdir where node app will be added and run from - default: /app',
   '--entrypoint <entrypoint>'     : 'Optional: Entrypoint when starting container - default: npm start',
+  '--labels <labels>'             : 'Optional: Comma-separated list of key value pairs to use as labels',
   '--verbose'                     : 'Verbose logging',
   '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)'
 };
@@ -85,6 +86,7 @@ if(options.fromRegistry && options.fromRegistry.substr(-1) != '/') options.fromR
 if (!options.fromRegistry && !options.fromImage.split(':')[0].includes('/')) {
   options.fromImage = 'library/' + options.fromImage;
 }
+
 
 async function run(options) {
   if (!(await fse.pathExists(options.folder))) throw new Error('No such folder: ' + options.folder);
