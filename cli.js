@@ -79,8 +79,8 @@ exitWithErrorIf(!options.toImage, '--toImage must be specified');
 exitWithErrorIf(!options.toRegistry && !options.toTar, 'Must specify either --toTar or --toRegistry');
 exitWithErrorIf(!options.toRegistry && !options.toToken && !options.toTar, 'A token must be given when uploading to docker hub');
 
-if(options.toRegistry.substr(-1) != '/') options.toRegistry += '/';
-if(options.fromRegistry.substr(-1) != '/') options.fromRegistry += '/';
+if(options.toRegistry && options.toRegistry.substr(-1) != '/') options.toRegistry += '/';
+if(options.fromRegistry && options.fromRegistry.substr(-1) != '/') options.fromRegistry += '/';
 
 if (!options.fromRegistry && !options.fromImage.split(':')[0].includes('/')) {
   options.fromImage = 'library/' + options.fromImage;
@@ -90,6 +90,7 @@ async function run(options) {
   if (!(await fse.pathExists(options.folder))) throw new Error('No such folder: ' + options.folder);
 
   const tmpdir = require('fs').mkdtempSync(path.join(os.tmpdir(),'nib-'));
+  logger.debug('Using ' + tmpdir);
   let fromdir = await fileutil.ensureEmptyDir(path.join(tmpdir, 'from'));
   let todir = await fileutil.ensureEmptyDir(path.join(tmpdir, 'to'));
 
@@ -105,7 +106,9 @@ async function run(options) {
     let toRegistry = new Registry(options.toRegistry, options.toToken);
     await toRegistry.upload(options.toImage, todir);  
   }
-  
+  logger.debug('Deleting ' + tmpdir + ' ...');
+  await fse.remove(tmpdir);
+  logger.debug('Done');
 }
 
 run(options).then(() => {
