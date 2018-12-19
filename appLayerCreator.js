@@ -108,7 +108,6 @@ function parseCommandLineToParts(entrypoint) {
 }
 
 function splitLabelsIntoObject(labelsString) {
-  console.log(labelsString);
   let labels = {};
   labelsString.split(',').map(l => l.split('=')).map(l => labels[l[0]] = l[1]);
   return labels;

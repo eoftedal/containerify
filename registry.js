@@ -39,7 +39,8 @@ function toError(res) {
 function dl(uri, headers) {
   logger.debug('dl', uri);
   return new Promise((resolve, reject) => {
-    followRedirects(uri, headers, res => {
+    followRedirects(uri, headers, (err, res) => {
+      if (err) return reject(err);
       logger.debug(res.statusCode, res.statusMessage, res.headers['content-type'], res.headers['content-length']);
       if (!isOk(res.statusCode)) return reject(toError(res));
       let data = [];
@@ -59,7 +60,8 @@ async function dlJson(uri, headers) {
 
 function dlToFile(uri, file, headers) {
   return new Promise((resolve, reject) => {
-    followRedirects(uri, headers, res => {
+    followRedirects(uri, headers, (err, res) => {
+      if (err) return reject(err);
       logger.debug(res.statusCode, res.statusMessage, res.headers['content-type'], res.headers['content-length']);
       if (!isOk(res.statusCode)) return reject(toError(res));
       res.pipe(require('fs').createWriteStream(file))
@@ -72,16 +74,17 @@ function dlToFile(uri, file, headers) {
 }
 
 
-function followRedirects(uri, headers, cb) {
+function followRedirects(uri, headers, cb, count=0) {
   logger.debug('rc', uri);
   let options = URL.parse(uri);
   options.headers = headers;
   options.method = 'GET';
   request(options, res => {
     if (redirectCodes.includes(res.statusCode)) {
-      return followRedirects(res.headers.location, headers, cb);
+      if (count > 10) return cb('Too many redirects for ' + uri); 
+      return followRedirects(res.headers.location, headers, cb, count+1);
     }
-    cb(res);
+    cb(null, res);
   }).end();
 }
 
