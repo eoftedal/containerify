@@ -1,6 +1,6 @@
 {
   "name": "doqr",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Build node.js docker images without docker",
   "main": "./cli.js",
   "scripts": {
@@ -21,8 +21,7 @@
     "url": "https://github.com/eoftedal/doqr.git"
   },
   "files": [
-    "*.js",
-    "*.json",
-    "*.md"
-  ]
+    "*.js"
+  ],
+  "keywords": ["docker","container","image"]
 }

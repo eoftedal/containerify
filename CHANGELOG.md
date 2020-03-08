@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.9] - 2020-03-08
+
+### Removed
+- Removed files from npm package and simplified package.json to use defaults
+
 ## [0.0.8] - 2020-03-08
 
 ### Added
