@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.10] - 2020-03-08
+
+### Modified
+- Updated the README with improved example and missing option for the timestamp
+
 ## [0.0.9] - 2020-03-08
 
 ### Removed
