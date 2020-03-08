@@ -34,6 +34,7 @@ Options:
   --user <user>                  Optional: User account to run process in container - default: 1000
   --workdir <directory>          Optional: Workdir where node app will be added and run from - default: /app
   --entrypoint <entrypoint>      Optional: Entrypoint when starting container - default: npm start
+  --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and now on manifest/config
   --verbose                      Verbose logging
   --allowInsecureRegistries      Allow insecure registries (with self-signed/untrusted cert)
   -h, --help                     output usage information
