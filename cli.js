@@ -29,8 +29,9 @@ const possibleArgs = {
   '--workdir <directory>'         : 'Optional: Workdir where node app will be added and run from - default: /app',
   '--entrypoint <entrypoint>'     : 'Optional: Entrypoint when starting container - default: npm start',
   '--labels <labels>'             : 'Optional: Comma-separated list of key value pairs to use as labels',
+  '--setTimeStamp <timestamp>'    : 'Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and now on manifest/config',
   '--verbose'                     : 'Verbose logging',
-  '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)'
+  '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)',
 };
 
 const keys = Object.keys(possibleArgs)
@@ -64,6 +65,16 @@ exitWithErrorIf(options.registry && options.fromRegistry, 'Do not set both --reg
 exitWithErrorIf(options.registry && options.toRegistry, 'Do not set both --registry and --toRegistry');
 exitWithErrorIf(options.token && options.fromToken, 'Do not set both --token and --fromToken');
 exitWithErrorIf(options.token && options.toToken, 'Do not set both --token and --toToken');
+
+if (options.setTimeStamp) {
+  try {
+    options.setTimeStamp = new Date(options.setTimeStamp);
+  } catch(e) {
+    exitWithErrorIf(true, 'Failed to parse date: ' + e);
+  }
+  logger.info('Setting all dates to: ' + options.setTimeStamp);
+}
+
 
 if (options.registry) {
   options.fromRegistry = options.registry;
@@ -102,7 +113,7 @@ async function run(options) {
   await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
   if (options.toTar) {
-    await tarExporter.saveToTar(todir, tmpdir, options.toTar, options.toImage);
+    await tarExporter.saveToTar(todir, tmpdir, options.toTar, options.toImage, options);
   }
   if (options.toRegistry) {
     let toRegistry = new Registry(options.toRegistry, options.toToken);

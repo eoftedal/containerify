@@ -13,8 +13,7 @@ const depLayerPossibles = ['package.json', 'package-lock.json', 'node_modules'];
 const tarDefaultConfig = {
   preservePaths: false, 
   portable: true, 
-  follow: true, 
-  noMtime: true	
+  follow: true
 };
 
 function calculateHashOfBuffer(buf) {
@@ -38,10 +37,10 @@ function copySync(src, dest) {
   fse.copySync(src, dest, copyOptions);
 }
 
-function addEmptyLayer(config, operation, action) {
+function addEmptyLayer(config, options, operation, action) {
   logger.info(`Applying ${operation}`);
   config.history.push({
-    created: new Date().toISOString(),
+    created: options.setTimeStamp || new Date().toISOString(),
     created_by: '/bin/sh -c #(nop) ' + operation,
     empty_layer: true
   });
@@ -70,7 +69,9 @@ async function addDataLayer(tmpdir, todir, options, config, layers, files, comme
     prefix: options.workdir, 
     cwd: buildDir, 
     file: layerFile,
-    gzip: true
+    gzip: true,
+    noMtime: (!options.setTimeStamp),
+    mtime: options.setTimeStamp
   }), files);
   let fhash = await calculateHash(layerFile);
   let finalName = path.join(todir, fhash + '.tar.gz');
@@ -83,7 +84,7 @@ async function addDataLayer(tmpdir, todir, options, config, layers, files, comme
   let dhash = await getHashOfUncompressed(finalName);
   config.rootfs.diff_ids.push('sha256:' + dhash);
   config.history.push({
-    created: new Date().toISOString(),
+    created: options.setTimeStamp || new Date().toISOString(),
     created_by: 'doqr',
     comment: comment
   });
@@ -114,16 +115,16 @@ function splitLabelsIntoObject(labelsString) {
 }
 
 async function addAppLayers(options, config, todir, manifest, tmpdir) {
-  addEmptyLayer(config, `WORKDIR ${options.workdir}`, config => config.config.WorkingDir = options.workdir);
+  addEmptyLayer(config, options, `WORKDIR ${options.workdir}`, config => config.config.WorkingDir = options.workdir);
   let entrypoint = parseCommandLineToParts(options.entrypoint);
-  addEmptyLayer(config, `ENTRYPOINT ${JSON.stringify(entrypoint)}`, config => config.config.Entrypoint = entrypoint);
-  addEmptyLayer(config, `USER ${options.user}`, config => {
+  addEmptyLayer(config, options, `ENTRYPOINT ${JSON.stringify(entrypoint)}`, config => config.config.Entrypoint = entrypoint);
+  addEmptyLayer(config, options, `USER ${options.user}`, config => {
     config.config.user = options.user;
     config.container_config.user = options.user;
   });
   if (options.labels) {
     let labels = splitLabelsIntoObject(options.labels);
-    addEmptyLayer(config, `LABELS ${options.labels}`, config => {
+    addEmptyLayer(config, options, `LABELS ${options.labels}`, config => {
       config.config.labels = labels;
       config.container_config.labels = labels;
     });

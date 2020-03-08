@@ -8,11 +8,10 @@ const logger = require('./logger');
 const tarDefaultConfig = {
   preservePaths: false, 
   portable: true, 
-  follow: true, 
-  noMtime: true  
+  follow: true  
 };
 
-async function saveToTar(fromdir, tmpdir, toPath, repoTags) {
+async function saveToTar(fromdir, tmpdir, toPath, repoTags, options) {
   logger.info('Creating ' +  toPath + ' ...');
 
   let manifestFile = path.join(fromdir, 'manifest.json');
@@ -42,7 +41,9 @@ async function saveToTar(fromdir, tmpdir, toPath, repoTags) {
   await fs.writeFile(path.join(tardir, 'config.json'), JSON.stringify(config));
   await tar.c(Object.assign({}, tarDefaultConfig, {
     cwd: tardir,
-    file: toPath
+    file: toPath,
+    noMtime: (!options.setTimeStamp),
+    mtime: options.setTimeStamp
   }), ['config.json', 'manifest.json'].concat(layers));
   logger.info('Finished ' + toPath);
 }
