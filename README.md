@@ -10,10 +10,10 @@ npm install -g doqr
 
 ## How to use
 
-This will pull the `node:10-alpine` image from Docker hub, build the image by adding the application in `src/`, and push the result to the given registry.
+This will pull the `node:13-slim` image from Docker hub, build the image by adding the application in `src/`, and push the result to the given registry, and set time timestamp of files in the created layers and configs to the current timestamp of the latest git commit.
 
 ```
-doqr --fromImage node:10-alpine --folder src/ --toImage myapp:latest --toRegistry https://registry.example.com/v2/
+doqr --fromImage node:13-slim --folder src/ --toImage myapp:latest --toRegistry https://registry.example.com/v2/ --setTimeStamp=$(git show -s --format="%aI" HEAD)
 ```
 
 ### Command line options 
