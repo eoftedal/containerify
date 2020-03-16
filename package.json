@@ -23,5 +23,9 @@
   "files": [
     "*.js"
   ],
-  "keywords": ["docker","container","image"]
+  "keywords": [
+    "docker",
+    "container",
+    "image"
+  ]
 }
