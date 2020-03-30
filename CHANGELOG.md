@@ -1,5 +1,11 @@
 # Changelog
 
+
+## [0.0.11] - 2020-03-30
+
+### Modified
+- Don't include .git and .gitignore if in same folder
+
 ## [0.0.10] - 2020-03-08
 
 ### Modified
