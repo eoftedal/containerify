@@ -1,6 +1,6 @@
 {
   "name": "doqr",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Build node.js docker images without docker",
   "main": "./cli.js",
   "scripts": {
@@ -12,9 +12,9 @@
   "author": "Erlend Oftedal <erlend@oftedal.no>",
   "license": "Apache-2.0",
   "dependencies": {
-    "commander": "^2.19.0",
+    "commander": "^2.20.3",
     "fs-extra": "^7.0.1",
-    "tar": "^4.4.8"
+    "tar": "^4.4.13"
   },
   "repository": {
     "type": "git",

@@ -9,6 +9,7 @@ const fileutil = require('./fileutil');
 const logger = require('./logger');
 
 const depLayerPossibles = ['package.json', 'package-lock.json', 'node_modules'];
+const ignore = ['.git', '.gitignore']
 
 const tarDefaultConfig = {
   preservePaths: false, 
@@ -130,7 +131,7 @@ async function addAppLayers(options, config, todir, manifest, tmpdir) {
     });
   }
 
-  let appFiles = await fs.readdir(options.folder);
+  let appFiles = (await fs.readdir(options.folder)).filter(l => !ignore.includes(l));
   let depLayerContent = appFiles.filter(l => depLayerPossibles.includes(l));
   let appLayerContent = appFiles.filter(l => !depLayerPossibles.includes(l));
 
