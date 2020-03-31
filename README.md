@@ -37,6 +37,7 @@ Options:
   --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and now on manifest/config
   --verbose                      Verbose logging
   --allowInsecureRegistries      Allow insecure registries (with self-signed/untrusted cert)
+  '--customContent <dirs/files>' Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead
   -h, --help                     output usage information
 ```
 

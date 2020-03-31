@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.0] - 2020-03-30
+
+### Added
+- Support custom layer (drops default entrypoint, user, workdir, node_modules layer and app layer). Only adds the specified files
 
 ## [0.0.11] - 2020-03-30
 

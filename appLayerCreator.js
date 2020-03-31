@@ -116,13 +116,27 @@ function splitLabelsIntoObject(labelsString) {
 }
 
 async function addAppLayers(options, config, todir, manifest, tmpdir) {
-  addEmptyLayer(config, options, `WORKDIR ${options.workdir}`, config => config.config.WorkingDir = options.workdir);
-  let entrypoint = parseCommandLineToParts(options.entrypoint);
-  addEmptyLayer(config, options, `ENTRYPOINT ${JSON.stringify(entrypoint)}`, config => config.config.Entrypoint = entrypoint);
-  addEmptyLayer(config, options, `USER ${options.user}`, config => {
-    config.config.user = options.user;
-    config.container_config.user = options.user;
-  });
+  if (options.customContent) {
+    addLabelsLayer(options, config, todir, manifest, tmpdir)
+    await addDataLayer(tmpdir, todir, options, config, manifest.layers, options.customContent, 'custom');
+  } else {
+    addEmptyLayer(config, options, `WORKDIR ${options.workdir}`, config => config.config.WorkingDir = options.workdir);
+    let entrypoint = parseCommandLineToParts(options.entrypoint);
+    addEmptyLayer(config, options, `ENTRYPOINT ${JSON.stringify(entrypoint)}`, config => config.config.Entrypoint = entrypoint);
+    addEmptyLayer(config, options, `USER ${options.user}`, config => {
+      config.config.user = options.user;
+      config.container_config.user = options.user;
+    });
+    addLabelsLayer(options, config, todir, manifest, tmpdir)
+    let appFiles = (await fs.readdir(options.folder)).filter(l => !ignore.includes(l));
+    let depLayerContent = appFiles.filter(l => depLayerPossibles.includes(l));
+    let appLayerContent = appFiles.filter(l => !depLayerPossibles.includes(l));
+
+    await addDataLayer(tmpdir, todir, options, config, manifest.layers, depLayerContent, 'dependencies');
+    await addDataLayer(tmpdir, todir, options, config, manifest.layers, appLayerContent, 'app');
+  }
+}
+async function addLabelsLayer(options, config, todir, manifest, tmpdir) {
   if (options.labels) {
     let labels = splitLabelsIntoObject(options.labels);
     addEmptyLayer(config, options, `LABELS ${options.labels}`, config => {
@@ -130,13 +144,6 @@ async function addAppLayers(options, config, todir, manifest, tmpdir) {
       config.container_config.labels = labels;
     });
   }
-
-  let appFiles = (await fs.readdir(options.folder)).filter(l => !ignore.includes(l));
-  let depLayerContent = appFiles.filter(l => depLayerPossibles.includes(l));
-  let appLayerContent = appFiles.filter(l => !depLayerPossibles.includes(l));
-
-  await addDataLayer(tmpdir, todir, options, config, manifest.layers, depLayerContent, 'dependencies');
-  await addDataLayer(tmpdir, todir, options, config, manifest.layers, appLayerContent, 'app');  
 }
 
 async function addLayers(tmpdir, fromdir, todir, options) {

@@ -4,7 +4,7 @@ let debugEnabled = false;
 
 
 function timeString() {
-  return (new Date()).toLocaleTimeString();
+  return (new Date()).toISOString();
 }
 function dolog(logger, parts) {
   logger.apply(console, [timeString()].concat(parts));
