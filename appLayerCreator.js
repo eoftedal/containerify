@@ -1,6 +1,7 @@
 const tar = require('tar');
 const fs = require('fs').promises;
 const fse = require('fs-extra');
+const fss = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const Gunzip = require('minizlib').Gunzip;
@@ -9,11 +10,48 @@ const fileutil = require('./fileutil');
 const logger = require('./logger');
 
 const depLayerPossibles = ['package.json', 'package-lock.json', 'node_modules'];
-const ignore = ['.git', '.gitignore']
+
+const ignore = ['.git', '.gitignore', '.npmrc', '.DS_Store', 'npm-debug.log', '.svn', '.hg', 'CVS']
+
+
+
+function statCache(layerOwner) {
+  if (!layerOwner) return null;
+  // We use the stat cache to overwrite uid and gid in image. 
+  // A bit hacky
+  const statCacheMap = new Map();
+  const a = layerOwner.split(":");
+  const gid = parseInt(a[0]);
+  const uid = parseInt(a[1]);
+  return {
+    get: function(name) {
+      if (statCacheMap.has(name)) return statCacheMap.get(name);
+      let stat = fss.statSync(name);
+      stat.uid = uid;
+      stat.gid = gid;
+      stat.atime = new Date(0);
+      stat.mtime = new Date(0);
+      stat.ctime = new Date(0);
+      stat.birthtime = new Date(0);
+      stat.atimeMs = 0;
+      stat.mtimeMs = 0;
+      stat.ctimeMs = 0;
+      stat.birthtimeMs = 0;
+      statCacheMap.set(name, stat);
+      return stat;
+    },
+    set: function(name, stat) {
+      statCacheMap.set(name, stat);
+    },
+    has: function(name) {
+      return true;
+    }
+  };
+}
+
 
 const tarDefaultConfig = {
-  preservePaths: false, 
-  portable: true, 
+  preservePaths: false,  
   follow: true
 };
 
@@ -63,17 +101,21 @@ async function addDataLayer(tmpdir, todir, options, config, layers, files, comme
   logger.info('Adding layer for ' + comment + ' ...');
   let buildDir = await fileutil.ensureEmptyDir(path.join(tmpdir, 'build'));
   files.map(f => {
-    copySync(path.join(options.folder, f), path.join(buildDir, f));  
-  });  
+    copySync(path.join(options.folder, f), path.join(buildDir, options.workdir, f));  
+  });
+  let workdir = [options.workdir.substr(1)];
   let layerFile = path.join(todir, 'layer.tar.gz');
+  if (options.layerOwner) logger.info("Setting file ownership to: " + options.layerOwner)
   await tar.c(Object.assign({}, tarDefaultConfig, {
-    prefix: options.workdir, 
+    statCache: statCache(options.layerOwner),
+    portable: !options.layerOwner,
+    prefix: "/", 
     cwd: buildDir, 
     file: layerFile,
     gzip: true,
     noMtime: (!options.setTimeStamp),
     mtime: options.setTimeStamp
-  }), files);
+  }), workdir);
   let fhash = await calculateHash(layerFile);
   let finalName = path.join(todir, fhash + '.tar.gz');
   await fse.move(layerFile, finalName);

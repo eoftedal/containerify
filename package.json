@@ -1,6 +1,6 @@
 {
   "name": "doqr",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Build node.js docker images without docker",
   "main": "./cli.js",
   "scripts": {

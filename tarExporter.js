@@ -1,5 +1,6 @@
 const tar = require('tar');
 const fs = require('fs').promises;
+const fss = require('fs');
 const fse = require('fs-extra');
 const path = require('path');
 

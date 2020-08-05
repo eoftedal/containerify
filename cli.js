@@ -34,6 +34,7 @@ const possibleArgs = {
   '--verbose'                     : 'Verbose logging',
   '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)',
   '--customContent <dirs/files>'  : 'Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead',
+  '--layerOwner <gid:uid>'        : 'Optional: Set specific gid and uid on files in the added layers',
 };
 
 const keys = Object.keys(possibleArgs)
@@ -77,6 +78,12 @@ if (options.setTimeStamp) {
   logger.info('Setting all dates to: ' + options.setTimeStamp);
 }
 
+if (options.layerOwner) {
+  if (!options.layerOwner.match("^[0-9]+:[0-9]+$")) {
+    exitWithErrorIf(true, 'layerOwner should be on format <number>:<number> (e.g. 1000:1000) but was: ' + options.layerOwner);
+  }
+}
+
 
 if (options.registry) {
   options.fromRegistry = options.registry;
@@ -110,7 +117,7 @@ if (options.customContent) {
 async function run(options) {
   if (!(await fse.pathExists(options.folder))) throw new Error('No such folder: ' + options.folder);
 
-  const tmpdir = require('fs').mkdtempSync(path.join(os.tmpdir(),'nib-'));
+  const tmpdir = require('fs').mkdtempSync(path.join(os.tmpdir(),'doqr-'));
   logger.debug('Using ' + tmpdir);
   let fromdir = await fileutil.ensureEmptyDir(path.join(tmpdir, 'from'));
   let todir = await fileutil.ensureEmptyDir(path.join(tmpdir, 'to'));
