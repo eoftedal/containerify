@@ -118,7 +118,6 @@ if (options.customContent) {
 if (options.extraContent) {
   options.extraContent = options.extraContent.split(",").map(x => x.split(":"));
   options.extraContent.forEach(p => {
-    console.log(p[0], p[1]);
     exitWithErrorIf(p.length != 2, 'Invalid extraContent - use comma between files/dirs, and : to separate local path and container path')
     exitWithErrorIf(!fs.existsSync(p[0]), 'Could not find ' + p[0] + ' in the base folder ' + options.folder)
   });

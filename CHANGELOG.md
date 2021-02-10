@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2021-02-10
+
+### Fixed
+- Unwanted debug logging
+
+
 ## [0.3.0] - 2021-02-10
 
 ### Added
