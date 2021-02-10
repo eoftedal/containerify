@@ -73,6 +73,9 @@ function calculateHash(path) {
 
 function copySync(src, dest) {
   const copyOptions = { overwrite: true, dereference: true };
+  let destFolder = dest.substring(0, dest.lastIndexOf('/'));
+  logger.debug('Copying ' + src + ' to ' + dest);
+  fse.ensureDirSync(destFolder)
   fse.copySync(src, dest, copyOptions);
 }
 
@@ -101,11 +104,15 @@ async function addDataLayer(tmpdir, todir, options, config, layers, files, comme
   logger.info('Adding layer for ' + comment + ' ...');
   let buildDir = await fileutil.ensureEmptyDir(path.join(tmpdir, 'build'));
   files.map(f => {
-    copySync(path.join(options.folder, f), path.join(buildDir, options.workdir, f));  
+    if (Array.isArray(f)) {
+      copySync(path.join(options.folder, f[0]), path.join(buildDir, f[1]));
+    } else {
+      copySync(path.join(options.folder, f), path.join(buildDir, options.workdir, f));
+    }
   });
-  let workdir = [options.workdir.substr(1)];
   let layerFile = path.join(todir, 'layer.tar.gz');
   if (options.layerOwner) logger.info("Setting file ownership to: " + options.layerOwner)
+  let filesToTar = fss.readdirSync(buildDir);
   await tar.c(Object.assign({}, tarDefaultConfig, {
     statCache: statCache(options.layerOwner),
     portable: !options.layerOwner,
@@ -115,7 +122,7 @@ async function addDataLayer(tmpdir, todir, options, config, layers, files, comme
     gzip: true,
     noMtime: (!options.setTimeStamp),
     mtime: options.setTimeStamp
-  }), workdir);
+  }), filesToTar);
   let fhash = await calculateHash(layerFile);
   let finalName = path.join(todir, fhash + '.tar.gz');
   await fse.move(layerFile, finalName);
@@ -176,6 +183,11 @@ async function addAppLayers(options, config, todir, manifest, tmpdir) {
 
     await addDataLayer(tmpdir, todir, options, config, manifest.layers, depLayerContent, 'dependencies');
     await addDataLayer(tmpdir, todir, options, config, manifest.layers, appLayerContent, 'app');
+  }
+  if (options.extraContent) {
+    for (let i in options.extraContent) {
+      await addDataLayer(tmpdir, todir, options, config, manifest.layers, [options.extraContent[i]], 'extra');
+    }
   }
 }
 async function addLabelsLayer(options, config, todir, manifest, tmpdir) {

@@ -34,6 +34,7 @@ const possibleArgs = {
   '--verbose'                     : 'Verbose logging',
   '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)',
   '--customContent <dirs/files>'  : 'Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead',
+  '--extraContent <dirs/files>'   : 'Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc',
   '--layerOwner <gid:uid>'        : 'Optional: Set specific gid and uid on files in the added layers',
 };
 
@@ -110,7 +111,16 @@ if (!options.fromRegistry && !options.fromImage.split(':')[0].includes('/')) {
 if (options.customContent) {
   options.customContent = options.customContent.split(",");
   options.customContent.forEach(p => {
-    exitWithErrorIf(!fs.existsSync(p), 'Could not find ' + p + ' in the root folder ')
+    exitWithErrorIf(!fs.existsSync(p), 'Could not find ' + p + ' in the base folder ' + options.folder)
+  });
+}
+
+if (options.extraContent) {
+  options.extraContent = options.extraContent.split(",").map(x => x.split(":"));
+  options.extraContent.forEach(p => {
+    console.log(p[0], p[1]);
+    exitWithErrorIf(p.length != 2, 'Invalid extraContent - use comma between files/dirs, and : to separate local path and container path')
+    exitWithErrorIf(!fs.existsSync(p[0]), 'Could not find ' + p[0] + ' in the base folder ' + options.folder)
   });
 }
 

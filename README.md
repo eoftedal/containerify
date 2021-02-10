@@ -38,6 +38,7 @@ Options:
   --verbose                      Verbose logging
   --allowInsecureRegistries      Allow insecure registries (with self-signed/untrusted cert)
   --customContent <dirs/files>   Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead
+  --extraContent <dirs/files>    Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc
   --layerOwner   <gid:uid>       Optional: Set specific gid and uid on files in the added layers
   -h, --help                     output usage information
 ```

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] - 2021-02-10
+
+### Added
+- Possible to add additional files/folders to specified destinations in the image with `--extraContent`
+
+
 ## [0.2.0] - 2020-08-05
 
 ### Added
