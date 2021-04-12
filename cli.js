@@ -30,6 +30,7 @@ const possibleArgs = {
   '--workdir <directory>'         : 'Optional: Workdir where node app will be added and run from - default: /app',
   '--entrypoint <entrypoint>'     : 'Optional: Entrypoint when starting container - default: npm start',
   '--labels <labels>'             : 'Optional: Comma-separated list of key value pairs to use as labels',
+  '--label <label>'               : 'Optional: Single label (name=value). This option can be used multiple times.',
   '--setTimeStamp <timestamp>'    : 'Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config',
   '--verbose'                     : 'Verbose logging',
   '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)',
@@ -43,6 +44,15 @@ const possibleArgs = {
 const keys = Object.keys(possibleArgs)
   .map(k => k.split(' ')[0].replace('--', ''));
 
+let labels = {};
+
+program.on('option:label', (ops) => {
+  //Can't use split here, because = might be in the label value
+  let splitPoint = ops.indexOf("="); 
+  labels[ops.substr(0, splitPoint)] = ops.substring(splitPoint+1);
+});
+
+
 Object.keys(possibleArgs)
   .reduce((program, k) => program.option(k, possibleArgs[k]), program)
   .parse(process.argv);
@@ -55,6 +65,19 @@ let options = {
 };
 
 keys.map(k => options[k] = program[k] || options[k]);
+
+delete options["label"];
+
+function splitLabelsIntoObject(labelsString) {
+  let labels = {};
+  labelsString.split(',').map(l => l.split('=')).map(l => labels[l[0]] = l[1]);
+  return labels;
+}
+
+let labelsOpt = options.labels ? splitLabelsIntoObject(options.labels) : {};
+Object.keys(labels).map(k => labelsOpt[k] = labels[k]);
+options.labels = labelsOpt;
+
 
 function exitWithErrorIf(check, error) {
   if (check) {

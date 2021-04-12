@@ -35,6 +35,7 @@ Options:
   --workdir <directory>          Optional: Workdir where node app will be added and run from - default: /app
   --entrypoint <entrypoint>      Optional: Entrypoint when starting container - default: npm start
   --labels <labels>              Optional: Comma-separated list of key value pairs to use as labels
+  --label <label>                Optional: Single label (name=value). This option can be used multiple times. Wrap in double quotes if value has spaces or other characters that can cause arugment parsing issues.
   --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config
   --verbose                      Verbose logging
   --allowInsecureRegistries      Allow insecure registries (with self-signed/untrusted cert)

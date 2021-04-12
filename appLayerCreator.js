@@ -158,12 +158,6 @@ function parseCommandLineToParts(entrypoint) {
     .filter(a => a != '');
 }
 
-function splitLabelsIntoObject(labelsString) {
-  let labels = {};
-  labelsString.split(',').map(l => l.split('=')).map(l => labels[l[0]] = l[1]);
-  return labels;
-}
-
 async function addAppLayers(options, config, todir, manifest, tmpdir) {
   if (options.customContent) {
     addLabelsLayer(options, config, todir, manifest, tmpdir)
@@ -192,10 +186,10 @@ async function addAppLayers(options, config, todir, manifest, tmpdir) {
 }
 async function addLabelsLayer(options, config, todir, manifest, tmpdir) {
   if (options.labels) {
-    let labels = splitLabelsIntoObject(options.labels);
-    addEmptyLayer(config, options, `LABELS ${options.labels}`, config => {
-      config.config.labels = labels;
-      config.container_config.labels = labels;
+
+    addEmptyLayer(config, options, `LABELS ${JSON.stringify(options.labels)}`, config => {
+      config.config.labels = options.labels;
+      config.container_config.labels = options.labels;
     });
   }
 }
