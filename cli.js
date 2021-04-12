@@ -30,12 +30,14 @@ const possibleArgs = {
   '--workdir <directory>'         : 'Optional: Workdir where node app will be added and run from - default: /app',
   '--entrypoint <entrypoint>'     : 'Optional: Entrypoint when starting container - default: npm start',
   '--labels <labels>'             : 'Optional: Comma-separated list of key value pairs to use as labels',
-  '--setTimeStamp <timestamp>'    : 'Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and now on manifest/config',
+  '--setTimeStamp <timestamp>'    : 'Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config',
   '--verbose'                     : 'Verbose logging',
   '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)',
   '--customContent <dirs/files>'  : 'Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead',
   '--extraContent <dirs/files>'   : 'Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc',
   '--layerOwner <gid:uid>'        : 'Optional: Set specific gid and uid on files in the added layers',
+  '--buildFolder <path>'          : 'Optional: Use a specific build folder when creating the image',
+
 };
 
 const keys = Object.keys(possibleArgs)
