@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.1] - 2022-03-24
+
+### Dependency update / security
+- Update minimist due to vuln in 1.2.5: https://github.com/advisories/GHSA-xvch-5gv4-984h
+
 ## [0.4.0] - 2021-04-12
 
 ### Added
