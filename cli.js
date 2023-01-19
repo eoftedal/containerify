@@ -31,6 +31,8 @@ const possibleArgs = {
   '--entrypoint <entrypoint>'     : 'Optional: Entrypoint when starting container - default: npm start',
   '--labels <labels>'             : 'Optional: Comma-separated list of key value pairs to use as labels',
   '--label <label>'               : 'Optional: Single label (name=value). This option can be used multiple times.',
+  '--envs <envs>'                 : 'Optional: Comma-separated list of key value paris to use av environment variables.',
+  '--env <env>'                   : 'Optional: Single environment variable (name=value). This option can be used multiple times.',
   '--setTimeStamp <timestamp>'    : 'Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config',
   '--verbose'                     : 'Verbose logging',
   '--allowInsecureRegistries'     : 'Allow insecure registries (with self-signed/untrusted cert)',
@@ -52,6 +54,11 @@ program.on('option:label', (ops) => {
   labels[ops.substr(0, splitPoint)] = ops.substring(splitPoint+1);
 });
 
+let envs = [];
+
+program.on('option:env', (ops) => {
+  envs.push(ops)
+})
 
 Object.keys(possibleArgs)
   .reduce((program, k) => program.option(k, possibleArgs[k]), program)
@@ -67,6 +74,7 @@ let options = {
 keys.map(k => options[k] = program[k] || options[k]);
 
 delete options["label"];
+delete options['env'];
 
 function splitLabelsIntoObject(labelsString) {
   let labels = {};
@@ -78,6 +86,8 @@ let labelsOpt = options.labels ? splitLabelsIntoObject(options.labels) : {};
 Object.keys(labels).map(k => labelsOpt[k] = labels[k]);
 options.labels = labelsOpt;
 
+let envsOpt = options.envs ? options.envs.split(',') : [];
+options.envs = [...envs, ...envsOpt]
 
 function exitWithErrorIf(check, error) {
   if (check) {

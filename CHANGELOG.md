@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0] - 2022-01-19
+
+### Added
+- Support for adding environment variables similar to labels
+
+### Fixed
+- Don't try to add labels if none are specified
+
 ## [0.4.1] - 2022-03-24
 
 ### Dependency update / security

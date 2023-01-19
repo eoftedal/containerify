@@ -160,7 +160,8 @@ function parseCommandLineToParts(entrypoint) {
 
 async function addAppLayers(options, config, todir, manifest, tmpdir) {
   if (options.customContent) {
-    addLabelsLayer(options, config, todir, manifest, tmpdir)
+    await addEnvsLayer(options, config);
+    await addLabelsLayer(options, config);
     await addDataLayer(tmpdir, todir, options, config, manifest.layers, options.customContent, 'custom');
   } else {
     addEmptyLayer(config, options, `WORKDIR ${options.workdir}`, config => config.config.WorkingDir = options.workdir);
@@ -170,7 +171,8 @@ async function addAppLayers(options, config, todir, manifest, tmpdir) {
       config.config.user = options.user;
       config.container_config.user = options.user;
     });
-    addLabelsLayer(options, config, todir, manifest, tmpdir)
+    await addEnvsLayer(options, config);
+    await addLabelsLayer(options, config);
     let appFiles = (await fs.readdir(options.folder)).filter(l => !ignore.includes(l));
     let depLayerContent = appFiles.filter(l => depLayerPossibles.includes(l));
     let appLayerContent = appFiles.filter(l => !depLayerPossibles.includes(l));
@@ -184,9 +186,9 @@ async function addAppLayers(options, config, todir, manifest, tmpdir) {
     }
   }
 }
-async function addLabelsLayer(options, config, todir, manifest, tmpdir) {
-  if (options.labels) {
 
+async function addLabelsLayer(options, config) {
+  if (Object.keys(options.labels).length > 0) {
     addEmptyLayer(config, options, `LABELS ${JSON.stringify(options.labels)}`, config => {
       config.config.labels = options.labels;
       config.container_config.labels = options.labels;
@@ -194,8 +196,17 @@ async function addLabelsLayer(options, config, todir, manifest, tmpdir) {
   }
 }
 
-async function addLayers(tmpdir, fromdir, todir, options) {
+async function addEnvsLayer(options, config) {
+  if (options.envs.length > 0) {
+    addEmptyLayer(config, options, `ENV ${JSON.stringify(options.envs)}`, config => {
+      // Keep old environment variables
+      config.config.env = [...config.config['Env'], ...options.envs];
+      config.container_config.env = options.envs;
+    });
+  }
+}
 
+async function addLayers(tmpdir, fromdir, todir, options) {
   logger.info('Parsing image ...');
   let manifest = await fse.readJson(path.join(fromdir, 'manifest.json'));
   let config = await fse.readJson(path.join(fromdir, 'config.json'));
