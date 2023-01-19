@@ -199,6 +199,7 @@ async function addLayers(tmpdir, fromdir, todir, options) {
   logger.info('Parsing image ...');
   let manifest = await fse.readJson(path.join(fromdir, 'manifest.json'));
   let config = await fse.readJson(path.join(fromdir, 'config.json'));
+  config.container_config = config.container_config || {};
 
   logger.info('Adding new layers...');
   await copyLayers(fromdir, todir, manifest.layers);
