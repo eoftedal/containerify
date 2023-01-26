@@ -8,6 +8,12 @@
 ### Fixed
 - Don't try to add labels if none are specified
 
+## [0.4.2] - 2023-01-19
+
+### Fixed
+- Initialize `config.container_config` in case it's `undefined` 
+
+
 ## [0.4.1] - 2022-03-24
 
 ### Dependency update / security
