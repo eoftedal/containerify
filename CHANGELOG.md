@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.0] - 2022-02-03
+
+### Added
+- Support for config as .json-file
+
 ## [0.5.0] - 2022-01-19
 
 ### Added
