@@ -19,6 +19,7 @@ const possibleArgs = {
   '--fromImage <name:tag>'        : 'Required: Image name of base image - [path/]image:tag',
   '--toImage <name:tag>'          : 'Required: Image name of target image - [path/]image:tag',
   '--folder <full path>'          : 'Required: Base folder of node application (contains package.json)',
+  '--file <path>'                 : 'Optional: Name of configuration file (defaults to doqr.json if found on path)',
   '--fromRegistry <registry url>' : 'Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/',
   '--fromToken <token>'           : 'Optional: Authentication token for from registry',
   '--toRegistry <registry url>'   : 'Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/',
@@ -40,7 +41,6 @@ const possibleArgs = {
   '--extraContent <dirs/files>'   : 'Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc',
   '--layerOwner <gid:uid>'        : 'Optional: Set specific gid and uid on files in the added layers',
   '--buildFolder <path>'          : 'Optional: Use a specific build folder when creating the image',
-
 };
 
 const keys = Object.keys(possibleArgs)
@@ -64,7 +64,6 @@ Object.keys(possibleArgs)
   .reduce((program, k) => program.option(k, possibleArgs[k]), program)
   .parse(process.argv);
 
-
 let options = {
   workdir : '/app',
   user: '1000',
@@ -76,6 +75,25 @@ keys.map(k => options[k] = program[k] || options[k]);
 delete options['label'];
 delete options['env'];
 
+if (options.file && !fs.existsSync(options.file)) {
+  logger.error(`Config file '${options.file}' not found`)
+  process.exit(1)
+}
+if (!options.file && fs.existsSync(`${options.folder}/doqr.json`)) {
+  options.file = 'doqr.json'
+}
+
+let configFromFile = options.file ? JSON.parse(fs.readFileSync(options.file)) : {}
+Object.keys(configFromFile).forEach( k => {
+  if (!keys.includes(k)) {
+    logger.error(`Unknown option in config-file '${options.file}': ${k}`)
+    process.exit(1)
+  }
+})
+
+// Convert envs object to array
+configFromFile.envs = configFromFile.envs ? Object.keys(configFromFile.envs).map(e => `${e}=${configFromFile.envs[e]}`) : []
+
 function splitLabelsIntoObject(labelsString) {
   let labels = {};
   labelsString.split(',').map(l => l.split('=')).map(l => labels[l[0]] = l[1]);
@@ -84,10 +102,16 @@ function splitLabelsIntoObject(labelsString) {
 
 let labelsOpt = options.labels ? splitLabelsIntoObject(options.labels) : {};
 Object.keys(labels).map(k => labelsOpt[k] = labels[k]);
-options.labels = labelsOpt;
+options.labels = {...configFromFile.labels, ...labelsOpt};
 
 let envsOpt = options.envs ? options.envs.split(',') : [];
-options.envs = [...envs, ...envsOpt]
+options.envs = [...configFromFile.envs, ...envs, ...envsOpt]
+
+delete configFromFile['envs']
+delete configFromFile['labels']
+
+// Replace missing options keys with variables from config
+Object.keys(options).map(k => options[k] = options[k] ? options[k] : configFromFile[k])
 
 function exitWithErrorIf(check, error) {
   if (check) {
@@ -182,6 +206,8 @@ async function run(options) {
   await fse.remove(tmpdir);
   logger.debug('Done');
 }
+
+logger.debug('Running with config:', options)
 
 run(options).then(() => {
   logger.info('Done!');
