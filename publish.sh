@@ -2,6 +2,12 @@
 set -e
 
 npm install
+
+if [[ `git status --porcelain` ]]; then
+  echo "ERROR: Changes found in git"
+  exit 1
+fi
+
 npm run lint
 npm run build
 
@@ -10,6 +16,7 @@ COMMIT_ID=$(git rev-parse HEAD)
 echo "Point $VERSION to $COMMIT_ID and publish (Y/N)?"
 
 if [ $(git tag -l $VERSION) ]; then
+    echo "";
     echo "ERROR: A tag already exists for $VERSION"
     echo "Aborting...";
     exit 1;
