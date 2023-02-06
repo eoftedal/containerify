@@ -132,7 +132,7 @@ async function addDataLayer(
 			file: layerFile,
 			gzip: true,
 			noMtime: !options.setTimeStamp,
-			mtime: options.setTimeStamp,
+			...(options.setTimeStamp ? { mtime: new Date(options.setTimeStamp) } : {}),
 		}),
 		filesToTar,
 	);

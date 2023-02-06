@@ -47,7 +47,7 @@ async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTa
 				cwd: tardir,
 				file: toPath,
 				noMtime: !options.setTimeStamp,
-				mtime: options.setTimeStamp,
+				...(options.setTimeStamp ? { mtime: new Date(options.setTimeStamp) } : {}),
 			},
 		},
 		["config.json", "manifest.json"].concat(layers),

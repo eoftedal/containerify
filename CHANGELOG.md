@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2] - 2022-02-06
+
+### Bugfix
+
+- setTimeStamp broken after TypeScript migration
+
 ## [1.0.1] - 2022-02-06
 
 ### Fix
