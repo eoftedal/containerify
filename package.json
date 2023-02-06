@@ -16,15 +16,16 @@
 	"license": "Apache-2.0",
 	"dependencies": {
 		"commander": "^10.0.0",
-		"fs-extra": "^7.0.1",
-		"tar": "^4.4.13"
+		"fs-extra": "^11.1.0",
+		"tar": "^6.1.13"
 	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/eoftedal/doqr.git"
 	},
 	"files": [
-		"*.js"
+		"lib/*.js",
+		"bin/*"
 	],
 	"keywords": [
 		"docker",
