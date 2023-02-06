@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.1] - 2022-02-03
+
+### Fixed
+- Defer assigning default values to let config-file be able to alter them
+
 ## [0.6.0] - 2022-02-03
 
 ### Added

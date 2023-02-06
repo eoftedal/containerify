@@ -64,11 +64,12 @@ Object.keys(possibleArgs)
   .reduce((program, k) => program.option(k, possibleArgs[k]), program)
   .parse(process.argv);
 
-let options = {
+const defaultOptions = {
   workdir : '/app',
   user: '1000',
   entrypoint: 'npm start'
 };
+let options = {};
 
 keys.map(k => options[k] = program[k] || options[k]);
 
@@ -110,8 +111,10 @@ options.envs = [...configFromFile.envs, ...envs, ...envsOpt]
 delete configFromFile['envs']
 delete configFromFile['labels']
 
-// Replace missing options keys with variables from config
+// Replace undefined 'options' keys with values from config file
 Object.keys(options).map(k => options[k] = options[k] ? options[k] : configFromFile[k])
+// Replace still undefined 'options' keys with values from default config
+Object.keys(options).map(k => options[k] = options[k] ? options[k] : defaultOptions[k])
 
 function exitWithErrorIf(check, error) {
   if (check) {
@@ -216,4 +219,3 @@ run(options).then(() => {
   logger.error(error);
   process.exit(1);
 });
-
