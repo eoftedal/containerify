@@ -216,7 +216,6 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		const image = parseImage(imageStr);
 		const manifestFile = path.join(folder, "manifest.json");
 		const manifest = (await fse.readJson(manifestFile)) as Manifest;
-		console.log("Mænifest", manifest);
 
 		logger.info("Checking layer status...");
 		const layerStatus = await Promise.all(

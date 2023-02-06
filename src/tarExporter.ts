@@ -16,7 +16,6 @@ async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTa
 
 	const manifestFile = path.join(fromdir, "manifest.json");
 	const manifest = (await fse.readJson(manifestFile)) as Manifest;
-	console.log(manifest);
 	const configFile = path.join(fromdir, manifest.config.digest.split(":")[1] + ".json");
 	const config = await fse.readJson(configFile);
 
