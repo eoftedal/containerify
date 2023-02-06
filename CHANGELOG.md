@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.3] - 2022-02-06
+
+### Improvement
+
+- Improve error message when empty node_modules layer
+
 ## [1.0.2] - 2022-02-06
 
 ### Bugfix

@@ -123,6 +123,13 @@ async function addDataLayer(
 	const layerFile = path.join(todir, "layer.tar.gz");
 	if (options.layerOwner) logger.info("Setting file ownership to: " + options.layerOwner);
 	const filesToTar = fss.readdirSync(buildDir);
+	if (filesToTar.length == 0) {
+		throw new Error(
+			"No files found for layer: " +
+				comment +
+				(comment == "dependencies" ? ". Did you forget to run npm install?" : ""),
+		);
+	}
 	await tar.c(
 		Object.assign({}, tarDefaultConfig, {
 			statCache: statCache(options.layerOwner),
