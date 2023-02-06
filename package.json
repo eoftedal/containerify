@@ -1,31 +1,46 @@
 {
-  "name": "doqr",
-  "version": "0.6.0",
-  "description": "Build node.js docker images without docker",
-  "main": "./cli.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "bin": {
-    "doqr": "./cli.js"
-  },
-  "author": "Erlend Oftedal <erlend@oftedal.no>",
-  "license": "Apache-2.0",
-  "dependencies": {
-    "commander": "^2.20.3",
-    "fs-extra": "^7.0.1",
-    "tar": "^4.4.13"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/eoftedal/doqr.git"
-  },
-  "files": [
-    "*.js"
-  ],
-  "keywords": [
-    "docker",
-    "container",
-    "image"
-  ]
+	"name": "doqr",
+	"version": "1.0.0",
+	"description": "Build node.js docker images without docker",
+	"main": "./lib/cli.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"build": "tsc && chmod ugo+x lib/cli.js",
+		"lint": "eslint . --ext .ts --fix --ignore-path .gitignore",
+		"check": "npm run lint && npm run typecheck"
+	},
+	"bin": {
+		"doqr": "./lib/cli.js"
+	},
+	"author": "Erlend Oftedal <erlend@oftedal.no>",
+	"license": "Apache-2.0",
+	"dependencies": {
+		"commander": "^10.0.0",
+		"fs-extra": "^7.0.1",
+		"tar": "^4.4.13"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/eoftedal/doqr.git"
+	},
+	"files": [
+		"*.js"
+	],
+	"keywords": [
+		"docker",
+		"container",
+		"image"
+	],
+	"devDependencies": {
+		"@types/fs-extra": "^11.0.1",
+		"@types/minizlib": "^2.1.4",
+		"@types/node": "^18.11.19",
+		"@types/tar": "^6.1.3",
+		"@typescript-eslint/eslint-plugin": "^5.51.0",
+		"@typescript-eslint/parser": "^5.51.0",
+		"eslint": "^8.33.0",
+		"eslint-config-prettier": "^8.6.0",
+		"prettier": "^2.8.3",
+		"typescript": "^4.9.5"
+	}
 }
