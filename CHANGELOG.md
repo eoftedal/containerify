@@ -4,6 +4,7 @@
 
 ### Fixed
 - Defer assigning default values to let config-file be able to alter them
+- Respect `falsy` options and only override if they are actually `undefined`
 
 ## [0.6.0] - 2022-02-03
 

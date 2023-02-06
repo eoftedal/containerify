@@ -112,9 +112,9 @@ delete configFromFile['envs']
 delete configFromFile['labels']
 
 // Replace undefined 'options' keys with values from config file
-Object.keys(options).map(k => options[k] = options[k] ? options[k] : configFromFile[k])
+Object.keys(options).map(k => options[k] = (options[k] !== undefined) ? options[k] : configFromFile[k])
 // Replace still undefined 'options' keys with values from default config
-Object.keys(options).map(k => options[k] = options[k] ? options[k] : defaultOptions[k])
+Object.keys(options).map(k => options[k] = (options[k] !== undefined) ? options[k] : defaultOptions[k])
 
 function exitWithErrorIf(check, error) {
   if (check) {
