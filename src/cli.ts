@@ -101,7 +101,7 @@ cliOptions.labels?.split(",")?.forEach((x: string) => setKeyValue(labelsOpt, x))
 Object.keys(labelsOpt)
 	.filter((l) => Object.keys(cliLabels).includes(l))
 	.forEach((l) => {
-		exitWithErrorIf(true, `Label ${l} specified both with --label and --label`);
+		exitWithErrorIf(true, `Label ${l} specified both with --labels and --label`);
 	});
 
 const labels = { ...configFromFile.labels, ...labelsOpt, ...cliLabels }; //Let cli arguments override file
