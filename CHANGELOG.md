@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.4] - 2023-02-07
+
+### Fixed
+
+- Don't add extra trailing slash if already present in `fromRegisty` or `toRegistry`
+
 ## [1.0.3] - 2022-02-06
 
 ### Improvement

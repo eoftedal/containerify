@@ -186,8 +186,8 @@ exitWithErrorIf(
 	"A token must be given when uploading to docker hub",
 );
 
-if (options.toRegistry && options.toRegistry.substring(-1) != "/") options.toRegistry += "/";
-if (options.fromRegistry && options.fromRegistry.substring(-1) != "/") options.fromRegistry += "/";
+if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
+if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
 
 if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/")) {
 	options.fromImage = "library/" + options.fromImage;
