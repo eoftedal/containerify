@@ -6,6 +6,7 @@
 
 - Don't add extra trailing slash if already present in `fromRegisty` or `toRegistry`
 - Clarify error message with label defined with both `--label` and `--labels`
+- Create parent directory for tar-image if not existing
 
 ## [1.0.3] - 2022-02-06
 
