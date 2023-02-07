@@ -55,12 +55,12 @@ function setKeyValue(target: Record<string, string>, keyValue: string) {
 
 const cliLabels = {} as Record<string, string>;
 program.on("option:label", (ops: string) => {
-	setKeyValue(cliLabels, ops);
+	setKeyValue(cliLabels, ops.trim());
 });
 
 const cliEnv = {} as Record<string, string>;
 program.on("option:env", (ops: string) => {
-	setKeyValue(cliEnv, ops);
+	setKeyValue(cliEnv, ops.trim());
 });
 
 const cliOptions = Object.entries(possibleArgs)
@@ -97,7 +97,7 @@ Object.keys(configFromFile).forEach((k) => {
 });
 
 const labelsOpt: Record<string, string> = {};
-cliOptions.labels?.split(",")?.forEach((x: string) => setKeyValue(labelsOpt, x));
+cliOptions.labels?.split(",")?.forEach((x: string) => setKeyValue(labelsOpt, x.trim()));
 Object.keys(labelsOpt)
 	.filter((l) => Object.keys(cliLabels).includes(l))
 	.forEach((l) => {
@@ -107,7 +107,7 @@ Object.keys(labelsOpt)
 const labels = { ...configFromFile.labels, ...labelsOpt, ...cliLabels }; //Let cli arguments override file
 
 const envOpt: Record<string, string> = {};
-cliOptions.envs?.split(",")?.forEach((x: string) => setKeyValue(envOpt, x));
+cliOptions.envs?.split(",")?.forEach((x: string) => setKeyValue(envOpt, x.trim()));
 Object.keys(envOpt)
 	.filter((l) => Object.keys(cliEnv).includes(l))
 	.forEach((l) => {
