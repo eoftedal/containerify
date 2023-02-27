@@ -14,6 +14,9 @@ const tarDefaultConfig = {
 async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTags: string[], options: Options) {
 	logger.info("Creating " + toPath + " ...");
 
+	const targetFolder = path.dirname(toPath);
+	await fs.access(targetFolder).catch(async () => await fs.mkdir(targetFolder, {recursive: true}));
+
 	const manifestFile = path.join(fromdir, "manifest.json");
 	const manifest = (await fse.readJson(manifestFile)) as Manifest;
 	const configFile = path.join(fromdir, manifest.config.digest.split(":")[1] + ".json");

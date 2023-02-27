@@ -55,12 +55,12 @@ function setKeyValue(target: Record<string, string>, keyValue: string) {
 
 const cliLabels = {} as Record<string, string>;
 program.on("option:label", (ops: string) => {
-	setKeyValue(cliLabels, ops);
+	setKeyValue(cliLabels, ops.trim());
 });
 
 const cliEnv = {} as Record<string, string>;
 program.on("option:env", (ops: string) => {
-	setKeyValue(cliEnv, ops);
+	setKeyValue(cliEnv, ops.trim());
 });
 
 const cliOptions = Object.entries(possibleArgs)
@@ -97,17 +97,17 @@ Object.keys(configFromFile).forEach((k) => {
 });
 
 const labelsOpt: Record<string, string> = {};
-cliOptions.labels?.split(",")?.forEach((x: string) => setKeyValue(labelsOpt, x));
+cliOptions.labels?.split(",")?.forEach((x: string) => setKeyValue(labelsOpt, x.trim()));
 Object.keys(labelsOpt)
 	.filter((l) => Object.keys(cliLabels).includes(l))
 	.forEach((l) => {
-		exitWithErrorIf(true, `Label ${l} specified both with --label and --label`);
+		exitWithErrorIf(true, `Label ${l} specified both with --labels and --label`);
 	});
 
 const labels = { ...configFromFile.labels, ...labelsOpt, ...cliLabels }; //Let cli arguments override file
 
 const envOpt: Record<string, string> = {};
-cliOptions.envs?.split(",")?.forEach((x: string) => setKeyValue(envOpt, x));
+cliOptions.envs?.split(",")?.forEach((x: string) => setKeyValue(envOpt, x.trim()));
 Object.keys(envOpt)
 	.filter((l) => Object.keys(cliEnv).includes(l))
 	.forEach((l) => {
@@ -186,8 +186,8 @@ exitWithErrorIf(
 	"A token must be given when uploading to docker hub",
 );
 
-if (options.toRegistry && options.toRegistry.substring(-1) != "/") options.toRegistry += "/";
-if (options.fromRegistry && options.fromRegistry.substring(-1) != "/") options.fromRegistry += "/";
+if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
+if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
 
 if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/")) {
 	options.fromImage = "library/" + options.fromImage;

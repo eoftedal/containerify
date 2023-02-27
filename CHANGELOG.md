@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.4] - 2023-02-07
+
+### Fixed
+
+- Don't add extra trailing slash if already present in `fromRegisty` or `toRegistry`
+- Clarify error message with label defined with both `--label` and `--labels`
+- Create parent directory for tar-image if not existing
+- Trim whitespace around labels and env-variables
+
 ## [1.0.3] - 2022-02-06
 
 ### Improvement
