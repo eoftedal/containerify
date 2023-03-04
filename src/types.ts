@@ -9,6 +9,27 @@ export type Image = {
 	tag: string;
 };
 
+// https://github.com/opencontainers/image-spec/blob/v1.0/image-index.md
+// https://docs.docker.com/registry/spec/manifest-v2-2/#manifest-list
+export type Index = {
+	mediaType: string;
+	schemaVersion: string;
+	manifests: Array<IndexManifest>;
+	annotations?: Map<string, string>;
+}
+
+export type IndexManifest = {
+	mediaType: string;
+	digest: string;
+	size: number;
+	platform: Platform;
+}
+
+export type Platform = {
+	architecture: string;
+	os: string;
+}
+
 export type Manifest = {
 	config: {
 		digest: string;
@@ -26,6 +47,8 @@ export type PartialManifestConfig = {
 };
 
 export type Config = {
+	architecture?: string;
+	os?: string;
 	history: Array<HistoryLine>;
 	rootfs: {
 		diff_ids: string[];
@@ -62,6 +85,7 @@ export type Options = {
 	toToken?: string;
 	toTar?: string;
 	registry?: string;
+	platform: string;
 	token?: string;
 	user: string;
 	workdir: string;

@@ -8,11 +8,18 @@ import * as fss from "fs";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
-import { Config, Image, Layer, Manifest, PartialManifestConfig } from "./types";
+import {Config, Image, Index, Layer, Manifest, IndexManifest, PartialManifestConfig, Options, Platform} from "./types";
 
 type Headers = Record<string, string>;
 
 const redirectCodes = [307, 303, 302];
+
+
+const ociIndexMIMEType = 'application/vnd.oci.image.index.v1+json'
+const ociManifestMIMEType = 'application/vnd.oci.image.manifest.v1+json'
+
+const dockerManifestListMIMEType = 'application/vnd.docker.distribution.manifest.list.v2+json'
+const dockerManifestV2MIMEType = 'application/vnd.docker.distribution.manifest.v2+json'
 
 function request(options: https.RequestOptions, callback: (res: http.IncomingMessage) => void) {
 	return (options.protocol == "https:" ? https : http).request(options, (res) => {
@@ -190,15 +197,59 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		});
 	}
 
-	async function dlManifest(image: Image): Promise<Manifest> {
-		return await dlJson(
+	async function dlManifest(image: Image, preferredPlatform: Platform): Promise<Manifest> {
+
+		// Accept both manifests and index/manifest lists
+		const res = await dlJson<Manifest|Index>(
 			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
-			buildHeaders("application/vnd.docker.distribution.manifest.v2+json", auth),
+			buildHeaders(`${ociIndexMIMEType}, ${ociManifestMIMEType}, ${dockerManifestListMIMEType}, ${dockerManifestV2MIMEType}`, auth),
 		);
+
+		// We've received an OCI Index or Docker Manifest List and need to find which manifest we want
+		if (res.mediaType === ociIndexMIMEType || res.mediaType === dockerManifestListMIMEType) {
+			const availableManifests = (res as Index).manifests
+			const adequateManifest = pickManifest(availableManifests, preferredPlatform)
+			return dlManifest({...image, tag: adequateManifest.digest}, preferredPlatform)
+		}
+
+		return res as Manifest
+	}
+
+	function pickManifest(manifests: IndexManifest[], preferredPlatform: Platform): IndexManifest {
+		const matchingArchitectures = new Set<IndexManifest>;
+		const matchingOSes = new Set<IndexManifest>;
+		// Find sets of matching architecture and os
+		for (const manifest of manifests) {
+			if (manifest.platform.architecture === preferredPlatform.architecture) {
+				matchingArchitectures.add(manifest)
+			}
+			if (manifest.platform.os === preferredPlatform.os) {
+				matchingOSes.add(manifest)
+			}
+		}
+
+		// If the intersection of matching architectures and OS is one we've found our optimal match
+		const intersection = new Set([...matchingArchitectures].filter((x) => matchingOSes.has(x)));
+		if (intersection.size == 1) {
+			return intersection.values().next().value
+		}
+
+		// If we don't have a perfect match we give a warning and try the first matching architecture
+		if (matchingArchitectures.size >= 1) {
+			const matchingArch = matchingArchitectures.values().next().value
+			logger.info(`[WARN] Preferred OS '${preferredPlatform.os}' not available.`)
+			logger.info(`[WARN] Using closest available manifest: '${JSON.stringify(matchingArch.platform)}'.`)
+			return matchingArch
+		}
+
+		// If there's no image matching the wanted architecture we bail
+		logger.info(`No image matching our requested architecture: '${preferredPlatform.architecture}'` )
+		logger.info(`Available platforms: ${JSON.stringify(manifests.map(m => m.platform))}`)
+		process.exit(1)
 	}
 
 	async function dlConfig(image: Image, config: Manifest["config"]): Promise<Config> {
-		return await dlJson(`${registryBaseUrl}${image.path}/blobs/${config.digest}`, buildHeaders("*/*", auth));
+		return await dlJson<Config>(`${registryBaseUrl}${image.path}/blobs/${config.digest}`, buildHeaders("*/*", auth));
 	}
 
 	async function dlLayer(image: Image, layer: Layer, folder: string): Promise<string> {
@@ -252,15 +303,23 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		);
 	}
 
-	async function download(imageStr: string, folder: string) {
+	async function download(imageStr: string, folder: string, preferredPlatform: Platform) {
 		const image = parseImage(imageStr);
 
 		logger.info("Downloading manifest...");
-		const manifest = await dlManifest(image);
+		const manifest = await dlManifest(image, preferredPlatform);
 		await fs.writeFile(path.join(folder, "manifest.json"), JSON.stringify(manifest));
 
 		logger.info("Downloading config...");
 		const config = await dlConfig(image, manifest.config);
+
+		if (config.architecture != preferredPlatform.architecture) {
+			logger.info(`[WARN] Image architecture (${config.architecture}) does not match preferred architecture (${preferredPlatform.architecture}).`)
+		}
+		if (config.os != preferredPlatform.os) {
+			logger.info(`[WARN] Image OS (${config.os}) does not match preferred OS (${preferredPlatform.os}).`)
+		}
+
 		await fs.writeFile(path.join(folder, "config.json"), JSON.stringify(config));
 
 		logger.info("Downloading layers...");
@@ -285,10 +344,10 @@ export function createDockerRegistry(auth?: string) {
 		);
 		return resp.token;
 	}
-	async function download(imageStr: string, folder: string) {
+	async function download(imageStr: string, folder: string, platform: Platform) {
 		const image = parseImage(imageStr);
 		if (!auth) auth = await getToken(image);
-		await createRegistry(registryBaseUrl, auth).download(imageStr, folder);
+		await createRegistry(registryBaseUrl, auth).download(imageStr, folder, platform);
 	}
 
 	async function upload(imageStr: string, folder: string) {
