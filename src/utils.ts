@@ -1,5 +1,4 @@
 import { Platform } from "./types";
-import logger from "./logger";
 
 export function unique(vals: string[]): string[] {
 	return [...new Set(vals)];
@@ -50,8 +49,7 @@ export function getPreferredPlatform(platform?: string): Platform {
 	}
 
 	if (!(os in OS_MAPPING)) {
-		logger.error(`Platform ${os} not supported. Supported platforms are '${Object.keys(OS_MAPPING)}`)
-		process.exit(1);
+		throw new Error(`Platform ${os} not supported. Supported platforms are '${Object.keys(OS_MAPPING)}`)
 	}
 
 	// Mapping from Node's `process.arch` and Golang's `$GOARCH` to Golang's `$GOARCH` (incomplete)
@@ -68,8 +66,7 @@ export function getPreferredPlatform(platform?: string): Platform {
 	}
 
 	if (!(arch in ARCH_MAPPING)) {
-		logger.error(`Architecture ${arch} not supported. Supported architectures are '${Object.keys(ARCH_MAPPING)}'.`)
-		process.exit(1)
+		throw new Error(`Architecture ${arch} not supported. Supported architectures are '${Object.keys(ARCH_MAPPING)}'.`)
 	}
 
 	return {
