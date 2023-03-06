@@ -1,4 +1,5 @@
-import { Platform } from "./types";
+import {Layer, Manifest, Platform} from "./types";
+import {DockerV2, OCI} from "./MIMETypes";
 
 export function unique(vals: string[]): string[] {
 	return [...new Set(vals)];
@@ -73,6 +74,29 @@ export function getPreferredPlatform(platform?: string): Platform {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore We handle missing keys above, so this should be OK
 		os: OS_MAPPING[os], architecture: ARCH_MAPPING[arch]
+	}
+}
+
+export function getManifestLayerType(manifest: Manifest) {
+	if (manifest.mediaType === OCI.manifest) {
+		return OCI.layer.gzip
+	}
+	if (manifest.mediaType === DockerV2.manifest) {
+		return DockerV2.layer.gzip
+	}
+	throw new Error(`${manifest.mediaType} not recognized.`)
+}
+
+export function getLayerTypeFileEnding(layer: Layer) {
+	switch (layer.mediaType) {
+		case OCI.layer.gzip:
+		case DockerV2.layer.gzip:
+			return '.tar.gz'
+		case OCI.layer.tar:
+		case DockerV2.layer.tar:
+			return '.tar'
+		default:
+			throw new Error(`Layer mediaType ${layer.mediaType} not known.`)
 	}
 }
 

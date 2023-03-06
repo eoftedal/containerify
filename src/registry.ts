@@ -8,18 +8,13 @@ import * as fss from "fs";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
-import {Config, Image, Index, Layer, Manifest, IndexManifest, PartialManifestConfig, Options, Platform} from "./types";
+import {Config, Image, Index, Layer, Manifest, IndexManifest, PartialManifestConfig, Platform} from "./types";
+import {DockerV2, OCI} from "./MIMETypes";
+import {getLayerTypeFileEnding} from "./utils";
 
 type Headers = Record<string, string>;
 
 const redirectCodes = [307, 303, 302];
-
-
-const ociIndexMIMEType = 'application/vnd.oci.image.index.v1+json'
-const ociManifestMIMEType = 'application/vnd.oci.image.manifest.v1+json'
-
-const dockerManifestListMIMEType = 'application/vnd.docker.distribution.manifest.list.v2+json'
-const dockerManifestV2MIMEType = 'application/vnd.docker.distribution.manifest.v2+json'
 
 function request(options: https.RequestOptions, callback: (res: http.IncomingMessage) => void) {
 	return (options.protocol == "https:" ? https : http).request(options, (res) => {
@@ -167,7 +162,7 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 
 	async function uploadLayerContent(uploadUrl: string, layer: Layer, dir: string) {
 		logger.info(layer.digest);
-		const file = path.join(dir, getHash(layer.digest) + (layer.mediaType.includes("tar.gzip") ? ".tar.gz" : ".tar"));
+		const file = path.join(dir, getHash(layer.digest) + getLayerTypeFileEnding(layer));
 		await uploadContent(uploadUrl, file, layer, auth);
 	}
 
@@ -202,11 +197,11 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		// Accept both manifests and index/manifest lists
 		const res = await dlJson<Manifest|Index>(
 			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
-			buildHeaders(`${ociIndexMIMEType}, ${ociManifestMIMEType}, ${dockerManifestListMIMEType}, ${dockerManifestV2MIMEType}`, auth),
+			buildHeaders(`${OCI.index}, ${OCI.manifest}, ${DockerV2.index}, ${DockerV2.manifest}`, auth),
 		);
 
 		// We've received an OCI Index or Docker Manifest List and need to find which manifest we want
-		if (res.mediaType === ociIndexMIMEType || res.mediaType === dockerManifestListMIMEType) {
+		if (res.mediaType === OCI.index || res.mediaType === DockerV2.index) {
 			const availableManifests = (res as Index).manifests
 			const adequateManifest = pickManifest(availableManifests, preferredPlatform)
 			return dlManifest({...image, tag: adequateManifest.digest}, preferredPlatform)
@@ -238,14 +233,14 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		if (matchingArchitectures.size >= 1) {
 			const matchingArch = matchingArchitectures.values().next().value
 			logger.info(`[WARN] Preferred OS '${preferredPlatform.os}' not available.`)
-			logger.info(`[WARN] Using closest available manifest: '${JSON.stringify(matchingArch.platform)}'.`)
+			logger.info('[WARN] Using closest available manifest:', JSON.stringify(matchingArch.platform))
 			return matchingArch
 		}
 
 		// If there's no image matching the wanted architecture we bail
-		logger.info(`No image matching our requested architecture: '${preferredPlatform.architecture}'` )
-		logger.info(`Available platforms: ${JSON.stringify(manifests.map(m => m.platform))}`)
-		process.exit(1)
+		logger.error(`No image matching requested architecture: '${preferredPlatform.architecture}'`)
+		logger.error('Available platforms:', JSON.stringify(manifests.map(m => m.platform)))
+		throw new Error('No image matching requested architecture')
 	}
 
 	async function dlConfig(image: Image, config: Manifest["config"]): Promise<Config> {
@@ -254,7 +249,7 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 
 	async function dlLayer(image: Image, layer: Layer, folder: string): Promise<string> {
 		logger.info(layer.digest);
-		const file = getHash(layer.digest) + (layer.mediaType.includes("tar.gzip") ? ".tar.gz" : ".tar");
+		const file = getHash(layer.digest) + getLayerTypeFileEnding(layer);
 		await dlToFile(
 			`${registryBaseUrl}${image.path}/blobs/${layer.digest}`,
 			path.join(folder, file),
