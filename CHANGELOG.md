@@ -9,6 +9,10 @@
 - Support for Docker Manifest List (application/vnd.docker.distribution.manifest.list.v2)
 - Option for selecting preferred platform (OS and architecture) similar to Docker 
 
+### Improvement
+
+- Add `doqr` version in manifest history `created_by` field
+
 ## [1.0.4] - 2023-02-07
 
 ### Fixed
