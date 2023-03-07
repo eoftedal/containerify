@@ -25,5 +25,8 @@ jobs:
       - name: Lint
         run: npm run check
 
+      - name: Build
+        run: npm run build
+
       - name: Integration test
         run: npm run integrationTest
