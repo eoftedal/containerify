@@ -1,8 +1,10 @@
-export type Layer = {
+type Descriptor = {
 	mediaType: string;
 	size: number;
 	digest: string;
 };
+
+export type Layer = Descriptor;
 
 export type Image = {
 	path: string;
@@ -16,35 +18,24 @@ export type Index = {
 	schemaVersion: string;
 	manifests: Array<IndexManifest>;
 	annotations?: Map<string, string>;
-}
+};
 
-export type IndexManifest = {
-	mediaType: string;
-	digest: string;
-	size: number;
+export type IndexManifest = Descriptor & {
 	platform: Platform;
-}
+};
 
 export type Platform = {
 	architecture: string;
 	os: string;
-}
+};
 
 export type Manifest = {
-	config: {
-		digest: string;
-		mediaType: string;
-		size: number;
-	};
+	config: Descriptor;
 	mediaType: string;
 	layers: Array<Layer>;
 };
 
-export type PartialManifestConfig = {
-	digest?: string;
-	mediaType: string;
-	size: number;
-};
+export type PartialManifestConfig = Omit<Descriptor, "digest"> & Partial<Pick<Descriptor, "digest">>;
 
 export type Config = {
 	architecture?: string;
