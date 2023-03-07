@@ -14,6 +14,7 @@ import logger from "./logger";
 import { Options } from "./types";
 import { omit, getPreferredPlatform } from "./utils";
 import { ensureEmptyDir } from "./fileutil";
+import { VERSION } from "./version";
 
 const possibleArgs = {
 	"--fromImage <name:tag>": "Required: Image name of base image - [path/]image:tag",
@@ -47,6 +48,7 @@ const possibleArgs = {
 		"Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc",
 	"--layerOwner <gid:uid>": "Optional: Set specific gid and uid on files in the added layers",
 	"--buildFolder <path>": "Optional: Use a specific build folder when creating the image",
+	"--version": "Get doqr version",
 } as const;
 
 function setKeyValue(target: Record<string, string>, keyValue: string) {
@@ -71,6 +73,11 @@ const cliOptions = Object.entries(possibleArgs)
 	}, program)
 	.parse()
 	.opts();
+
+if (cliOptions.version) {
+	console.log(`doqr v${VERSION}`);
+	process.exit(0);
+}
 
 const keys = Object.keys(possibleArgs).map((k) => k.split(" ")[0].replace("--", ""));
 

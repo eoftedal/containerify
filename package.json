@@ -9,7 +9,8 @@
 		"build": "tsc && chmod ugo+x lib/cli.js",
 		"lint": "eslint . --ext .ts --fix --ignore-path .gitignore",
 		"typecheck": "tsc --noEmit",
-		"check": "npm run lint && npm run typecheck"
+		"check": "npm run lint && npm run typecheck",
+		"dev": "tsc --watch"
 	},
 	"bin": {
 		"doqr": "./lib/cli.js"
