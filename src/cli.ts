@@ -12,7 +12,7 @@ import tarExporter from "./tarExporter";
 
 import logger from "./logger";
 import { Options } from "./types";
-import { omit } from "./utils";
+import { omit, getPreferredPlatform } from "./utils";
 import { ensureEmptyDir } from "./fileutil";
 
 const possibleArgs = {
@@ -28,6 +28,7 @@ const possibleArgs = {
 	"--toToken <token>": "Optional: Authentication token for target registry",
 	"--toTar <path>": "Optional: Export to tar file",
 	"--registry <path>": "Optional: Convenience argument for setting both from and to registry",
+	"--platform <platform>": "Optional: Preferred platform, e.g. linux/amd64 or arm64",
 	"--token <path>": "Optional: Convenience argument for setting token for both from and to registry",
 	"--user <user>": "Optional: User account to run process in container - default: 1000",
 	"--workdir <directory>": "Optional: Workdir where node app will be added and run from - default: /app",
@@ -220,7 +221,7 @@ async function run(options: Options) {
 	const fromRegistry = options.fromRegistry
 		? createRegistry(options.fromRegistry, options.fromToken ?? "")
 		: createDockerRegistry(options.fromToken);
-	await fromRegistry.download(options.fromImage, fromdir);
+	await fromRegistry.download(options.fromImage, fromdir, getPreferredPlatform(options.platform));
 
 	await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 

@@ -9,7 +9,8 @@ import { Gunzip } from "minizlib";
 import * as fileutil from "./fileutil";
 import logger from "./logger";
 import { Config, Layer, Manifest, Options } from "./types";
-import { unique } from "./utils";
+import {getManifestLayerType, getLayerTypeFileEnding, unique} from "./utils";
+import { VERSION } from "./version";
 
 const depLayerPossibles = ["package.json", "package-lock.json", "node_modules"];
 
@@ -107,7 +108,7 @@ async function addDataLayer(
 	todir: string,
 	options: Options,
 	config: Config,
-	layers: Array<Layer>,
+	manifest: Manifest,
 	files: Array<string | Array<string>>,
 	comment: string,
 ) {
@@ -146,8 +147,8 @@ async function addDataLayer(
 	const fhash = await calculateHash(layerFile);
 	const finalName = path.join(todir, fhash + ".tar.gz");
 	await fse.move(layerFile, finalName);
-	layers.push({
-		mediaType: "application/vnd.docker.image.rootfs.diff.tar.gzip",
+	manifest.layers.push({
+		mediaType: getManifestLayerType(manifest),
 		size: await fileutil.sizeOf(finalName),
 		digest: "sha256:" + fhash,
 	});
@@ -155,7 +156,7 @@ async function addDataLayer(
 	config.rootfs.diff_ids.push("sha256:" + dhash);
 	config.history.push({
 		created: options.setTimeStamp || new Date().toISOString(),
-		created_by: "doqr",
+		created_by: `doqr:${VERSION}`,
 		comment: comment,
 	});
 }
@@ -163,7 +164,7 @@ async function addDataLayer(
 async function copyLayers(fromdir: string, todir: string, layers: Array<Layer>) {
 	await Promise.all(
 		layers.map(async (layer) => {
-			const file = layer.digest.split(":")[1] + (layer.mediaType.includes("tar.gzip") ? ".tar.gz" : ".tar");
+			const file = layer.digest.split(":")[1] + getLayerTypeFileEnding(layer);
 			await fse.copy(path.join(fromdir, file), path.join(todir, file));
 		}),
 	);
@@ -184,7 +185,7 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 	if (options.customContent) {
 		await addEnvsLayer(options, config);
 		await addLabelsLayer(options, config);
-		await addDataLayer(tmpdir, todir, options, config, manifest.layers, options.customContent, "custom");
+		await addDataLayer(tmpdir, todir, options, config, manifest, options.customContent, "custom");
 	} else {
 		addEmptyLayer(
 			config,
@@ -209,12 +210,12 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 		const depLayerContent = appFiles.filter((l) => depLayerPossibles.includes(l));
 		const appLayerContent = appFiles.filter((l) => !depLayerPossibles.includes(l));
 
-		await addDataLayer(tmpdir, todir, options, config, manifest.layers, depLayerContent, "dependencies");
-		await addDataLayer(tmpdir, todir, options, config, manifest.layers, appLayerContent, "app");
+		await addDataLayer(tmpdir, todir, options, config, manifest, depLayerContent, "dependencies");
+		await addDataLayer(tmpdir, todir, options, config, manifest, appLayerContent, "app");
 	}
 	if (options.extraContent) {
 		for (const i in options.extraContent) {
-			await addDataLayer(tmpdir, todir, options, config, manifest.layers, [options.extraContent[i]], "extra");
+			await addDataLayer(tmpdir, todir, options, config, manifest, [options.extraContent[i]], "extra");
 		}
 	}
 }
