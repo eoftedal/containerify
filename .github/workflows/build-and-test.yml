@@ -1,4 +1,4 @@
-name: Linting and type checking
+name: Linting and type checking and testing
 
 on: push
 
@@ -24,3 +24,6 @@ jobs:
 
       - name: Lint
         run: npm run check
+
+      - name: Integration test
+        run: npm run integrationTest

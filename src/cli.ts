@@ -213,7 +213,10 @@ if (options.extraContent) {
 			p.length != 2,
 			"Invalid extraContent - use comma between files/dirs, and : to separate local path and container path",
 		);
-		exitWithErrorIf(!fs.existsSync(p[0]), "Could not find " + p[0] + " in the base folder " + options.folder);
+		exitWithErrorIf(
+			!fs.existsSync(options.folder + p[0]),
+			"Could not find `" + p[0] + "` in the folder " + options.folder,
+		);
 	});
 }
 

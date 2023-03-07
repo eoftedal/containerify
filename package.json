@@ -10,7 +10,8 @@
 		"lint": "eslint . --ext .ts --fix --ignore-path .gitignore",
 		"typecheck": "tsc --noEmit",
 		"check": "npm run lint && npm run typecheck",
-		"dev": "tsc --watch"
+		"dev": "tsc --watch",
+		"integrationTest": "cd tests/integration/ && ./test.sh"
 	},
 	"bin": {
 		"doqr": "./lib/cli.js"
