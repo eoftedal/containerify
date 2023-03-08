@@ -11,7 +11,8 @@
 		"typecheck": "tsc --noEmit",
 		"check": "npm run lint && npm run typecheck",
 		"dev": "tsc --watch",
-		"integrationTest": "cd tests/integration/ && ./test.sh"
+		"integrationTest": "cd tests/integration/ && ./test.sh",
+		"registryTest": "cd tests/localtest/ && ./test.sh"
 	},
 	"bin": {
 		"doqr": "./lib/cli.js"
