@@ -8,9 +8,9 @@ import * as fss from "fs";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
-import {Config, Image, Index, Layer, Manifest, IndexManifest, PartialManifestConfig, Platform} from "./types";
-import {DockerV2, OCI} from "./MIMETypes";
-import {getLayerTypeFileEnding} from "./utils";
+import { Config, Image, Index, Layer, Manifest, IndexManifest, PartialManifestConfig, Platform } from "./types";
+import { DockerV2, OCI } from "./MIMETypes";
+import { getLayerTypeFileEnding } from "./utils";
 
 type Headers = Record<string, string>;
 
@@ -153,7 +153,7 @@ function uploadContent(
 }
 
 export function createRegistry(registryBaseUrl: string, token: string) {
-	const auth = "Bearer " + token;
+	const auth = token.startsWith("Basic ") ? token : "Bearer " + token;
 
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
@@ -193,54 +193,53 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 	}
 
 	async function dlManifest(image: Image, preferredPlatform: Platform): Promise<Manifest> {
-
 		// Accept both manifests and index/manifest lists
-		const res = await dlJson<Manifest|Index>(
+		const res = await dlJson<Manifest | Index>(
 			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
 			buildHeaders(`${OCI.index}, ${OCI.manifest}, ${DockerV2.index}, ${DockerV2.manifest}`, auth),
 		);
 
 		// We've received an OCI Index or Docker Manifest List and need to find which manifest we want
 		if (res.mediaType === OCI.index || res.mediaType === DockerV2.index) {
-			const availableManifests = (res as Index).manifests
-			const adequateManifest = pickManifest(availableManifests, preferredPlatform)
-			return dlManifest({...image, tag: adequateManifest.digest}, preferredPlatform)
+			const availableManifests = (res as Index).manifests;
+			const adequateManifest = pickManifest(availableManifests, preferredPlatform);
+			return dlManifest({ ...image, tag: adequateManifest.digest }, preferredPlatform);
 		}
 
-		return res as Manifest
+		return res as Manifest;
 	}
 
 	function pickManifest(manifests: IndexManifest[], preferredPlatform: Platform): IndexManifest {
-		const matchingArchitectures = new Set<IndexManifest>;
-		const matchingOSes = new Set<IndexManifest>;
+		const matchingArchitectures = new Set<IndexManifest>();
+		const matchingOSes = new Set<IndexManifest>();
 		// Find sets of matching architecture and os
 		for (const manifest of manifests) {
 			if (manifest.platform.architecture === preferredPlatform.architecture) {
-				matchingArchitectures.add(manifest)
+				matchingArchitectures.add(manifest);
 			}
 			if (manifest.platform.os === preferredPlatform.os) {
-				matchingOSes.add(manifest)
+				matchingOSes.add(manifest);
 			}
 		}
 
 		// If the intersection of matching architectures and OS is one we've found our optimal match
 		const intersection = new Set([...matchingArchitectures].filter((x) => matchingOSes.has(x)));
 		if (intersection.size == 1) {
-			return intersection.values().next().value
+			return intersection.values().next().value;
 		}
 
 		// If we don't have a perfect match we give a warning and try the first matching architecture
 		if (matchingArchitectures.size >= 1) {
-			const matchingArch = matchingArchitectures.values().next().value
-			logger.info(`[WARN] Preferred OS '${preferredPlatform.os}' not available.`)
-			logger.info('[WARN] Using closest available manifest:', JSON.stringify(matchingArch.platform))
-			return matchingArch
+			const matchingArch = matchingArchitectures.values().next().value;
+			logger.info(`[WARN] Preferred OS '${preferredPlatform.os}' not available.`);
+			logger.info("[WARN] Using closest available manifest:", JSON.stringify(matchingArch.platform));
+			return matchingArch;
 		}
 
 		// If there's no image matching the wanted architecture we bail
-		logger.error(`No image matching requested architecture: '${preferredPlatform.architecture}'`)
-		logger.error('Available platforms:', JSON.stringify(manifests.map(m => m.platform)))
-		throw new Error('No image matching requested architecture')
+		logger.error(`No image matching requested architecture: '${preferredPlatform.architecture}'`);
+		logger.error("Available platforms:", JSON.stringify(manifests.map((m) => m.platform)));
+		throw new Error("No image matching requested architecture");
 	}
 
 	async function dlConfig(image: Image, config: Manifest["config"]): Promise<Config> {
@@ -309,10 +308,12 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		const config = await dlConfig(image, manifest.config);
 
 		if (config.architecture != preferredPlatform.architecture) {
-			logger.info(`[WARN] Image architecture (${config.architecture}) does not match preferred architecture (${preferredPlatform.architecture}).`)
+			logger.info(
+				`[WARN] Image architecture (${config.architecture}) does not match preferred architecture (${preferredPlatform.architecture}).`,
+			);
 		}
 		if (config.os != preferredPlatform.os) {
-			logger.info(`[WARN] Image OS (${config.os}) does not match preferred OS (${preferredPlatform.os}).`)
+			logger.info(`[WARN] Image OS (${config.os}) does not match preferred OS (${preferredPlatform.os}).`);
 		}
 
 		await fs.writeFile(path.join(folder, "config.json"), JSON.stringify(config));
