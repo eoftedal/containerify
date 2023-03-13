@@ -12,15 +12,15 @@ mkdir -p tmp/v3/content/
 
 echo "Building image 1..."
 
-../../lib/cli.js --fromImage node:alpine --toImage doqr:demo-app --folder app --toTar tmp/v1.tar --setTimeStamp "2023-03-07T12:53:10.471Z"  >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v1.tar --setTimeStamp "2023-03-07T12:53:10.471Z"  >/dev/null
 
 echo "Building image 2..."
 
-../../lib/cli.js --fromImage node:alpine --toImage doqr:demo-app --folder app --toTar tmp/v2.tar --setTimeStamp "2023-03-07T12:53:10.471Z" >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v2.tar --setTimeStamp "2023-03-07T12:53:10.471Z" >/dev/null
 
 echo "Building image 3..."
 
-../../lib/cli.js --fromImage node:alpine --toImage doqr:demo-app --folder . --toTar tmp/v3.tar --customContent customContent --setTimeStamp "2023-03-07T12:53:10.471Z" >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder . --toTar tmp/v3.tar --customContent customContent --setTimeStamp "2023-03-07T12:53:10.471Z" >/dev/null
 
 
 echo "Untaring content ..."

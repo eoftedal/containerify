@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.0] - 2023-03-13
+
+### Breaking change
+
+- Rename from `doqr` to `containerify`
+
 ## [1.1.0] - 2023-03-04
 
 ### Added
@@ -7,7 +13,7 @@
 - Support for OCI Image Index (application/vnd.oci.image.index.v1)
 - Support for OCI Image Manifest (application/vnd.oci.image.manifest.v1)
 - Support for Docker Manifest List (application/vnd.docker.distribution.manifest.list.v2)
-- Option for selecting preferred platform (OS and architecture) similar to Docker 
+- Option for selecting preferred platform (OS and architecture) similar to Docker
 
 ### Improvement
 

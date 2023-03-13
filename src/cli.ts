@@ -20,7 +20,7 @@ const possibleArgs = {
 	"--fromImage <name:tag>": "Required: Image name of base image - [path/]image:tag",
 	"--toImage <name:tag>": "Required: Image name of target image - [path/]image:tag",
 	"--folder <full path>": "Required: Base folder of node application (contains package.json)",
-	"--file <path>": "Optional: Name of configuration file (defaults to doqr.json if found on path)",
+	"--file <path>": "Optional: Name of configuration file (defaults to containerify.json if found on path)",
 	"--fromRegistry <registry url>":
 		"Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/",
 	"--fromToken <token>": "Optional: Authentication token for from registry",
@@ -48,7 +48,7 @@ const possibleArgs = {
 		"Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc",
 	"--layerOwner <gid:uid>": "Optional: Set specific gid and uid on files in the added layers",
 	"--buildFolder <path>": "Optional: Use a specific build folder when creating the image",
-	"--version": "Get doqr version",
+	"--version": "Get containerify version",
 } as const;
 
 function setKeyValue(target: Record<string, string>, keyValue: string) {
@@ -75,7 +75,7 @@ const cliOptions = Object.entries(possibleArgs)
 	.opts();
 
 if (cliOptions.version) {
-	console.log(`doqr v${VERSION}`);
+	console.log(`containerify v${VERSION}`);
 	process.exit(0);
 }
 
@@ -92,8 +92,8 @@ if (cliOptions.file && !fs.existsSync(cliOptions.file)) {
 	process.exit(1);
 }
 
-if (!cliOptions.file && fs.existsSync(`${cliOptions.folder}/doqr.json`)) {
-	cliOptions.file = "doqr.json";
+if (!cliOptions.file && fs.existsSync(`${cliOptions.folder}/containerify.json`)) {
+	cliOptions.file = "containerify.json";
 }
 
 const configFromFile = cliOptions.file ? JSON.parse(fs.readFileSync(cliOptions.file, "utf-8")) : {};
@@ -223,7 +223,7 @@ if (options.extraContent) {
 async function run(options: Options) {
 	if (!(await fse.pathExists(options.folder))) throw new Error("No such folder: " + options.folder);
 
-	const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "doqr-"));
+	const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "containerify-"));
 	logger.debug("Using " + tmpdir);
 	const fromdir = await ensureEmptyDir(path.join(tmpdir, "from"));
 	const todir = await ensureEmptyDir(path.join(tmpdir, "to"));

@@ -9,7 +9,7 @@ import { Gunzip } from "minizlib";
 import * as fileutil from "./fileutil";
 import logger from "./logger";
 import { Config, Layer, Manifest, Options } from "./types";
-import {getManifestLayerType, getLayerTypeFileEnding, unique} from "./utils";
+import { getManifestLayerType, getLayerTypeFileEnding, unique } from "./utils";
 import { VERSION } from "./version";
 
 const depLayerPossibles = ["package.json", "package-lock.json", "node_modules"];
@@ -156,7 +156,7 @@ async function addDataLayer(
 	config.rootfs.diff_ids.push("sha256:" + dhash);
 	config.history.push({
 		created: options.setTimeStamp || new Date().toISOString(),
-		created_by: `doqr:${VERSION}`,
+		created_by: `containerify:${VERSION}`,
 		comment: comment,
 	});
 }
