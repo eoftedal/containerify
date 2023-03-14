@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.1] - 2023-03-14
+
+### Repository renamed
+
+- Rename github repo from `doqr` to `containerify`
+
 ## [2.0.0] - 2023-03-13
 
 ### Breaking change
