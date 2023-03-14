@@ -1,6 +1,6 @@
 # containerify
 
-containerify allows you to build node.js docker images without docker, allowing you to build a node.js docker image _from within a docker container_. This means you can build the container image on Kubernetes or Openshift - or locally in a docker container for more hermetic builds.
+containerify (previously known as doqr) allows you to build node.js docker images without docker, allowing you to build a node.js docker image _from within a docker container_. This means you can build the container image on Kubernetes or Openshift - or locally in a docker container for more hermetic builds.
 
 It will pull an image you specify from a given registry, add the node.js application from a given folder, and push the result to a(nother) given registry.
 
