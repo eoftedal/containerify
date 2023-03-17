@@ -48,6 +48,7 @@ const possibleArgs = {
 		"Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc",
 	"--layerOwner <gid:uid>": "Optional: Set specific gid and uid on files in the added layers",
 	"--buildFolder <path>": "Optional: Use a specific build folder when creating the image",
+	"--layerCacheFolder <path>": "Optional: Folder to cache base layers between builds",
 	"--version": "Get containerify version",
 } as const;
 
@@ -207,6 +208,20 @@ if (options.customContent) {
 	});
 }
 
+if (options.layerCacheFolder) {
+	if (!fs.existsSync(options.layerCacheFolder)) {
+		try {
+			logger.info(`Layer cache folder does not exist. Creating ${options.layerCacheFolder} ...`);
+			fs.mkdirSync(options.layerCacheFolder, { recursive: true });
+		} catch (e) {
+			exitWithErrorIf(true, "Failed to create layer cache folder");
+		}
+	}
+	if (!options.layerCacheFolder.endsWith("/")) {
+		options.layerCacheFolder += "/";
+	}
+}
+
 if (options.extraContent) {
 	options.extraContent.forEach((p) => {
 		exitWithErrorIf(
@@ -231,7 +246,12 @@ async function run(options: Options) {
 	const fromRegistry = options.fromRegistry
 		? createRegistry(options.fromRegistry, options.fromToken ?? "")
 		: createDockerRegistry(options.fromToken);
-	await fromRegistry.download(options.fromImage, fromdir, getPreferredPlatform(options.platform));
+	await fromRegistry.download(
+		options.fromImage,
+		fromdir,
+		getPreferredPlatform(options.platform),
+		options.layerCacheFolder,
+	);
 
 	await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 

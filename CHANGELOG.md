@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.0] - TBD
+
+### Adding caching of base layers
+
+- Allow specifying a cache folder to cache base layers which should speed up consequtive builds
+
 ## [2.0.1] - 2023-03-14
 
 ### Repository renamed

@@ -64,8 +64,23 @@ async function dlJson<T>(uri: string, headers: Headers): Promise<T> {
 	return JSON.parse(Buffer.from(data).toString("utf-8"));
 }
 
-function dlToFile(uri: string, file: string, headers: Headers): Promise<void> {
+function dlToFile(uri: string, file: string, headers: Headers, cacheFolder?: string, skipCache = false): Promise<void> {
 	return new Promise((resolve, reject) => {
+		const [filename] = file.split("/").slice(-1);
+		if (cacheFolder && !skipCache) {
+			fss
+				.createReadStream(cacheFolder + filename)
+				.on("error", () => {
+					logger.debug("Not found in layer cache " + cacheFolder + filename + " - Downloading...");
+					dlToFile(uri, file, headers, cacheFolder, true).then(() => resolve());
+				})
+				.pipe(fss.createWriteStream(file))
+				.on("finish", () => {
+					logger.debug("Found in layer cache " + cacheFolder + filename);
+					resolve();
+				});
+			return;
+		}
 		followRedirects(uri, headers, (result) => {
 			if ("error" in result) return reject(result.error);
 			const { res } = result;
@@ -73,6 +88,10 @@ function dlToFile(uri: string, file: string, headers: Headers): Promise<void> {
 			if (!isOk(res.statusCode ?? 0)) return reject(toError(res));
 			res.pipe(fss.createWriteStream(file)).on("finish", () => {
 				logger.debug("Done " + file + " - " + res.headers["content-length"] + " bytes ");
+				if (cacheFolder) {
+					logger.debug(`Writing ${file} to cache ${cacheFolder + filename}`);
+					fss.createReadStream(file).pipe(fss.createWriteStream(cacheFolder + filename));
+				}
 				resolve();
 			});
 		});
@@ -246,13 +265,14 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		return await dlJson<Config>(`${registryBaseUrl}${image.path}/blobs/${config.digest}`, buildHeaders("*/*", auth));
 	}
 
-	async function dlLayer(image: Image, layer: Layer, folder: string): Promise<string> {
-		logger.info(layer.digest);
+	async function dlLayer(image: Image, layer: Layer, folder: string, cacheFolder?: string): Promise<string> {
 		const file = getHash(layer.digest) + getLayerTypeFileEnding(layer);
+
 		await dlToFile(
 			`${registryBaseUrl}${image.path}/blobs/${layer.digest}`,
 			path.join(folder, file),
 			buildHeaders(layer.mediaType, auth),
+			cacheFolder,
 		);
 		return file;
 	}
@@ -297,7 +317,7 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		);
 	}
 
-	async function download(imageStr: string, folder: string, preferredPlatform: Platform) {
+	async function download(imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) {
 		const image = parseImage(imageStr);
 
 		logger.info("Downloading manifest...");
@@ -319,7 +339,7 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		await fs.writeFile(path.join(folder, "config.json"), JSON.stringify(config));
 
 		logger.info("Downloading layers...");
-		await Promise.all(manifest.layers.map((layer) => dlLayer(image, layer, folder)));
+		await Promise.all(manifest.layers.map((layer) => dlLayer(image, layer, folder, cacheFolder)));
 
 		logger.info("Image downloaded.");
 	}
@@ -340,10 +360,10 @@ export function createDockerRegistry(auth?: string) {
 		);
 		return resp.token;
 	}
-	async function download(imageStr: string, folder: string, platform: Platform) {
+	async function download(imageStr: string, folder: string, platform: Platform, cacheFolder?: string) {
 		const image = parseImage(imageStr);
 		if (!auth) auth = await getToken(image);
-		await createRegistry(registryBaseUrl, auth).download(imageStr, folder, platform);
+		await createRegistry(registryBaseUrl, auth).download(imageStr, folder, platform, cacheFolder);
 	}
 
 	async function upload(imageStr: string, folder: string) {

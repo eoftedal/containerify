@@ -90,4 +90,5 @@ export type Options = {
 	extraContent?: string[];
 	layerOwner?: string;
 	buildFolder?: string;
+	layerCacheFolder?: string;
 };

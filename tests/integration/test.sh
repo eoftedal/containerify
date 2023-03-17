@@ -9,18 +9,19 @@ rm -rf tmp
 mkdir -p tmp/v1/content/
 mkdir -p tmp/v2/content/
 mkdir -p tmp/v3/content/
+mkdir -p tmp/layercache
 
 echo "Building image 1..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v1.tar --setTimeStamp "2023-03-07T12:53:10.471Z"  >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v1.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose  >/dev/null
 
 echo "Building image 2..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v2.tar --setTimeStamp "2023-03-07T12:53:10.471Z" >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v2.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose >/dev/null
 
 echo "Building image 3..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder . --toTar tmp/v3.tar --customContent customContent --setTimeStamp "2023-03-07T12:53:10.471Z" >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder . --toTar tmp/v3.tar --customContent customContent --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache > /dev/null
 
 
 echo "Untaring content ..."

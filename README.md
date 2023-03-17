@@ -27,6 +27,7 @@ Options:
   --fromImage <name:tag>         Required: Image name of base image - [path/]image:tag
   --toImage <name:tag>           Required: Image name of target image - [path/]image:tag
   --folder <full path>           Required: Base folder of node application (contains package.json)
+  --file <path>                  Optional: Name of configuration file (defaults to containerify.json if found on path)
   --fromRegistry <registry url>  Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/
   --fromToken <token>            Optional: Authentication token for from registry
   --toRegistry <registry url>    Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/
@@ -39,17 +40,20 @@ Options:
   --workdir <directory>          Optional: Workdir where node app will be added and run from - default: /app
   --entrypoint <entrypoint>      Optional: Entrypoint when starting container - default: npm start
   --labels <labels>              Optional: Comma-separated list of key value pairs to use as labels
-  --label <label>                Optional: Single label (name=value). This option can be used multiple times. Wrap in double quotes if value has spaces or other characters that can cause arugment parsing issues.
-  --envs <envs>                  Optional: Comma-separated list of key value paris to use av environment variables.
+  --label <label>                Optional: Single label (name=value). This option can be used multiple times.
+  --envs <envs>                  Optional: Comma-separated list of key value pairs to use av environment variables.
   --env <env>                    Optional: Single environment variable (name=value). This option can be used multiple times.
-  --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config
+  --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on
+                                 manifest/config
   --verbose                      Verbose logging
   --allowInsecureRegistries      Allow insecure registries (with self-signed/untrusted cert)
   --customContent <dirs/files>   Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead
   --extraContent <dirs/files>    Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc
   --layerOwner <gid:uid>         Optional: Set specific gid and uid on files in the added layers
   --buildFolder <path>           Optional: Use a specific build folder when creating the image
-  -h, --help                     output usage information
+  --layerCacheFolder <path>      Optional: Folder to cache base layers between builds
+  --version                      Get containerify version
+  -h, --help                     display help for command
 ```
 
 ## Detailed info
