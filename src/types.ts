@@ -86,8 +86,8 @@ export type Options = {
 	setTimeStamp?: string;
 	verbose?: boolean;
 	allowInsecureRegistries?: boolean;
-	customContent?: string[];
-	extraContent?: string[];
+	customContent: string[];
+	extraContent: Record<string, string>;
 	layerOwner?: string;
 	buildFolder?: string;
 	layerCacheFolder?: string;
