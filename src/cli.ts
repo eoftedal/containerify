@@ -52,17 +52,17 @@ const possibleArgs = {
 	"--version": "Get containerify version",
 } as const;
 
-function setKeyValue(target: Record<string, string>, keyValue: string) {
-	const [k, v] = keyValue.split("=", 2);
+function setKeyValue(target: Record<string, string>, keyValue: string, separator = "=") {
+	const [k, v] = keyValue.split(separator, 2);
 	target[k.trim()] = v.trim();
 }
 
-const cliLabels = {} as Record<string, string>;
+const cliLabels: Record<string, string> = {};
 program.on("option:label", (ops: string) => {
 	setKeyValue(cliLabels, ops);
 });
 
-const cliEnv = {} as Record<string, string>;
+const cliEnv: Record<string, string> = {};
 program.on("option:env", (ops: string) => {
 	setKeyValue(cliEnv, ops);
 });
@@ -123,7 +123,16 @@ Object.keys(envOpt)
 		exitWithErrorIf(true, `Env ${l} specified both with --envs and --env`);
 	});
 
-const envs = { ...configFromFile.envs, ...envOpt, ...cliEnv }; //Let cli arguments overide file
+const envs = { ...configFromFile.envs, ...envOpt, ...cliEnv }; //Let cli arguments override file
+
+const customContent: string[] = [];
+configFromFile.customContent?.forEach((c: string) => customContent.push(c));
+cliOptions.customContent?.split(",").forEach((c: string) => customContent.push(c));
+
+const cliExtraContent: Record<string, string> = {};
+cliOptions.extraContent?.split(",").forEach((x: string) => setKeyValue(cliExtraContent, x, ":"));
+
+const extraContent = { ...configFromFile.extraContent, ...cliExtraContent };
 
 const cliParams: Record<string, string> = omit(cliOptions, [
 	"label",
@@ -133,13 +142,13 @@ const cliParams: Record<string, string> = omit(cliOptions, [
 	"customContent",
 	"extraContent",
 ]);
-cliParams.customContent = cliOptions.customContent?.split(",");
-cliParams.extraContent = cliOptions.extraContent?.split(",").map((x: string) => x.split(":"));
 
-const options: Partial<Options> = {
+const options: Options = {
 	...defaultOptions,
 	...configFromFile,
 	...cliParams,
+	customContent,
+	extraContent,
 	labels,
 	envs: Object.entries(envs).map(([k, v]) => `${k}=${v}`),
 };
@@ -202,11 +211,9 @@ if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/"))
 	options.fromImage = "library/" + options.fromImage;
 }
 
-if (options.customContent) {
-	options.customContent.forEach((p) => {
-		exitWithErrorIf(!fs.existsSync(p), "Could not find " + p + " in the base folder " + options.folder);
-	});
-}
+options.customContent.forEach((p) => {
+	exitWithErrorIf(!fs.existsSync(p), "Could not find " + p + " in the base folder " + options.folder);
+});
 
 if (options.layerCacheFolder) {
 	if (!fs.existsSync(options.layerCacheFolder)) {
@@ -222,18 +229,12 @@ if (options.layerCacheFolder) {
 	}
 }
 
-if (options.extraContent) {
-	options.extraContent.forEach((p) => {
-		exitWithErrorIf(
-			p.length != 2,
-			"Invalid extraContent - use comma between files/dirs, and : to separate local path and container path",
-		);
-		exitWithErrorIf(
-			!fs.existsSync(options.folder + p[0]),
-			"Could not find `" + p[0] + "` in the folder " + options.folder,
-		);
-	});
-}
+Object.keys(options.extraContent).forEach(k => {
+	exitWithErrorIf(
+		!fs.existsSync(options.folder + k),
+		"Could not find `" + k + "` in the folder " + options.folder,
+	);
+});
 
 async function run(options: Options) {
 	if (!(await fse.pathExists(options.folder))) throw new Error("No such folder: " + options.folder);

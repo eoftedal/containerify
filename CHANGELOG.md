@@ -2,15 +2,17 @@
 
 ## [2.1.0] - TBD
 
-### Adding caching of base layers
+### Added
 
-- Allow specifying a cache folder to cache base layers which should speed up consequtive builds
+- Allow specifying a cache folder to cache base layers which should speed up consecutive builds
+- Support for customContent from config file
+- Support for extraContent from config file
 
 ## [2.0.1] - 2023-03-14
 
 ### Repository renamed
 
-- Rename github repo from `doqr` to `containerify`
+- Rename GitHub repo from `doqr` to `containerify`
 
 ## [2.0.0] - 2023-03-13
 

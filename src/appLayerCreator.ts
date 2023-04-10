@@ -182,7 +182,7 @@ function parseCommandLineToParts(entrypoint: string) {
 }
 
 async function addAppLayers(options: Options, config: Config, todir: string, manifest: Manifest, tmpdir: string) {
-	if (options.customContent) {
+	if (options.customContent.length > 0) {
 		await addEnvsLayer(options, config);
 		await addLabelsLayer(options, config);
 		await addDataLayer(tmpdir, todir, options, config, manifest, options.customContent, "custom");
@@ -213,10 +213,8 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 		await addDataLayer(tmpdir, todir, options, config, manifest, depLayerContent, "dependencies");
 		await addDataLayer(tmpdir, todir, options, config, manifest, appLayerContent, "app");
 	}
-	if (options.extraContent) {
-		for (const i in options.extraContent) {
-			await addDataLayer(tmpdir, todir, options, config, manifest, [options.extraContent[i]], "extra");
-		}
+	for (const extraContent of Object.entries(options.extraContent)) {
+		await addDataLayer(tmpdir, todir, options, config, manifest, [extraContent], "extra");
 	}
 }
 
