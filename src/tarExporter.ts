@@ -19,6 +19,7 @@ async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTa
 }
 
 async function saveToOCITar(fromdir: string, tmpdir: string, toPath: string, repoTags: string[], options: Options) {
+	//TODO: Implement conversion to OCI tar
 	return saveToDockerTar(fromdir, tmpdir, toPath, repoTags, options);
 }
 
