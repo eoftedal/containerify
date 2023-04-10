@@ -233,10 +233,10 @@ export function createRegistry(registryBaseUrl: string, token: string) {
 		const matchingOSes = new Set<IndexManifest>();
 		// Find sets of matching architecture and os
 		for (const manifest of manifests) {
-			if (manifest.platform.architecture === preferredPlatform.architecture) {
+			if (manifest.platform?.architecture === preferredPlatform.architecture) {
 				matchingArchitectures.add(manifest);
 			}
-			if (manifest.platform.os === preferredPlatform.os) {
+			if (manifest.platform?.os === preferredPlatform.os) {
 				matchingOSes.add(manifest);
 			}
 		}

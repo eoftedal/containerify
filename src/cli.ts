@@ -28,6 +28,7 @@ const possibleArgs = {
 		"Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/",
 	"--toToken <token>": "Optional: Authentication token for target registry",
 	"--toTar <path>": "Optional: Export to tar file",
+	"--tarFormat <format>": "Optional: Format of tar file. 'docker' (default) or 'oci'",
 	"--registry <path>": "Optional: Convenience argument for setting both from and to registry",
 	"--platform <platform>": "Optional: Preferred platform, e.g. linux/amd64 or arm64",
 	"--token <path>": "Optional: Convenience argument for setting token for both from and to registry",
@@ -202,6 +203,10 @@ exitWithErrorIf(!options.toRegistry && !options.toTar, "Must specify either --to
 exitWithErrorIf(
 	!options.toRegistry && !options.toToken && !options.toTar,
 	"A token must be given when uploading to docker hub",
+);
+exitWithErrorIf(
+	options.toTar != undefined && !["oci", "docker", undefined].includes(options.tarFormat),
+	"Invalid tar format: " + options.tarFormat,
 );
 
 if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";

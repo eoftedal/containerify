@@ -1,10 +1,13 @@
-type Descriptor = {
-	mediaType: string;
-	size: number;
-	digest: string;
-};
+import {
+	DockerDescriptor,
+	DockerIndexManifest,
+	DockerManifestList,
+	DockerManifestV2,
+	DockerPlatform,
+} from "./manifests/docker";
+import { OCIDescriptor, OCIIndex, OCIIndexManifest, OCIManifest, OCIPlatform } from "./manifests/oci";
 
-export type Layer = Descriptor;
+export type Layer = DockerDescriptor | OCIDescriptor;
 
 export type Image = {
 	path: string;
@@ -13,29 +16,17 @@ export type Image = {
 
 // https://github.com/opencontainers/image-spec/blob/v1.0/image-index.md
 // https://docs.docker.com/registry/spec/manifest-v2-2/#manifest-list
-export type Index = {
-	mediaType: string;
-	schemaVersion: string;
-	manifests: Array<IndexManifest>;
-	annotations?: Map<string, string>;
-};
+export type Index = OCIIndex | DockerManifestList;
 
-export type IndexManifest = Descriptor & {
-	platform: Platform;
-};
+export type Manifest = OCIManifest | DockerManifestV2;
 
-export type Platform = {
-	architecture: string;
-	os: string;
-};
+export type IndexManifest = OCIIndexManifest | DockerIndexManifest;
 
-export type Manifest = {
-	config: Descriptor;
-	mediaType: string;
-	layers: Array<Layer>;
-};
+export type PartialManifestConfig =
+	| (Omit<OCIDescriptor, "digest"> & Partial<Pick<OCIDescriptor, "digest">>)
+	| (Omit<DockerDescriptor, "digest"> & Partial<Pick<DockerDescriptor, "digest">>);
 
-export type PartialManifestConfig = Omit<Descriptor, "digest"> & Partial<Pick<Descriptor, "digest">>;
+export type Platform = OCIPlatform | DockerPlatform;
 
 export type Config = {
 	architecture?: string;
@@ -75,6 +66,7 @@ export type Options = {
 	toRegistry?: string;
 	toToken?: string;
 	toTar?: string;
+	tarFormat?: "oci" | "docker";
 	registry?: string;
 	platform: string;
 	token?: string;

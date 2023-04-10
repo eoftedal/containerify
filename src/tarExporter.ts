@@ -12,10 +12,21 @@ const tarDefaultConfig = {
 };
 
 async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTags: string[], options: Options) {
+	if (options.tarFormat == "oci") {
+		return saveToOCITar(fromdir, tmpdir, toPath, repoTags, options);
+	}
+	return saveToDockerTar(fromdir, tmpdir, toPath, repoTags, options);
+}
+
+async function saveToOCITar(fromdir: string, tmpdir: string, toPath: string, repoTags: string[], options: Options) {
+	return saveToDockerTar(fromdir, tmpdir, toPath, repoTags, options);
+}
+
+async function saveToDockerTar(fromdir: string, tmpdir: string, toPath: string, repoTags: string[], options: Options) {
 	logger.info("Creating " + toPath + " ...");
 
 	const targetFolder = path.dirname(toPath);
-	await fs.access(targetFolder).catch(async () => await fs.mkdir(targetFolder, {recursive: true}));
+	await fs.access(targetFolder).catch(async () => await fs.mkdir(targetFolder, { recursive: true }));
 
 	const manifestFile = path.join(fromdir, "manifest.json");
 	const manifest = (await fse.readJson(manifestFile)) as Manifest;
