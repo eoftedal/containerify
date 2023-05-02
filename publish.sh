@@ -32,6 +32,7 @@ then
     git tag $VERSION $COMMIT_ID -m "Release of version $VERSION"
     git push --tags
     echo "Done!"
+    echo "Now create a release on GitHub!"
 else
     echo "Aborting"
 fi

@@ -29,8 +29,7 @@
 		"url": "https://github.com/eoftedal/containerify.git"
 	},
 	"files": [
-		"lib/*.js",
-		"bin/*"
+		"lib/"
 	],
 	"keywords": [
 		"docker",
