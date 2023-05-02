@@ -10,6 +10,8 @@ fi
 
 npm run lint
 npm run build
+npm run integrationTest
+npm run registryTest
 
 VERSION=$(cat package.json  | jq -r .version)
 COMMIT_ID=$(git rev-parse HEAD)
@@ -26,8 +28,6 @@ fi
 read -r -p "Are you sure? [y/N] " response
 if [[ "$response" =~ ^([yY])$ ]]
 then
-    echo "Publishing to npm..."
-    npm publish
     echo "Tagging..."
     git tag $VERSION $COMMIT_ID -m "Release of version $VERSION"
     git push --tags
