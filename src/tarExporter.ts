@@ -15,7 +15,7 @@ async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTa
 	logger.info("Creating " + toPath + " ...");
 
 	const targetFolder = path.dirname(toPath);
-	await fs.access(targetFolder).catch(async () => await fs.mkdir(targetFolder, {recursive: true}));
+	await fs.access(targetFolder).catch(async () => await fs.mkdir(targetFolder, { recursive: true }));
 
 	const manifestFile = path.join(fromdir, "manifest.json");
 	const manifest = (await fse.readJson(manifestFile)) as Manifest;
@@ -43,7 +43,7 @@ async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTa
 	];
 	await fs.writeFile(path.join(tardir, "manifest.json"), JSON.stringify(simpleManifest));
 	await fs.writeFile(path.join(tardir, "config.json"), JSON.stringify(config));
-	await tar.c(
+	tar.create(
 		{
 			...tarDefaultConfig,
 			...{

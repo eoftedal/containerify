@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.3.0] - 2023-06-21
+
+- Internal refactoring
+
+## [2.2.0] - 2023-05-02
+
+- Adding provenance build
+
 ## [2.1.0] - 2023-04-10
 
 ### Added

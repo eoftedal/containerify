@@ -131,17 +131,20 @@ async function addDataLayer(
 				(comment == "dependencies" ? ". Did you forget to run npm install?" : ""),
 		);
 	}
-	await tar.c(
-		Object.assign({}, tarDefaultConfig, {
-			statCache: statCache(options.layerOwner),
-			portable: !options.layerOwner,
-			prefix: "/",
-			cwd: buildDir,
-			file: layerFile,
-			gzip: true,
-			noMtime: !options.setTimeStamp,
-			...(options.setTimeStamp ? { mtime: new Date(options.setTimeStamp) } : {}),
-		}),
+	tar.create(
+		{
+			...tarDefaultConfig,
+			...{
+				statCache: statCache(options.layerOwner),
+				portable: !options.layerOwner,
+				prefix: "/",
+				cwd: buildDir,
+				file: layerFile,
+				gzip: true,
+				noMtime: !options.setTimeStamp,
+				...(options.setTimeStamp ? { mtime: new Date(options.setTimeStamp) } : {}),
+			},
+		},
 		filesToTar,
 	);
 	const fhash = await calculateHash(layerFile);
