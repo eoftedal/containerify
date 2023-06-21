@@ -43,7 +43,7 @@ async function saveToTar(fromdir: string, tmpdir: string, toPath: string, repoTa
 	];
 	await fs.writeFile(path.join(tardir, "manifest.json"), JSON.stringify(simpleManifest));
 	await fs.writeFile(path.join(tardir, "config.json"), JSON.stringify(config));
-	tar.create(
+	await tar.create(
 		{
 			...tarDefaultConfig,
 			...{

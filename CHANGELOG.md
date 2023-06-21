@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.4.0] - 2023-06-21
+
+- Internal refactoring
+
 ## [2.3.0] - 2023-06-21
 
 - Internal refactoring

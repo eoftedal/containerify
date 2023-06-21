@@ -131,7 +131,7 @@ async function addDataLayer(
 				(comment == "dependencies" ? ". Did you forget to run npm install?" : ""),
 		);
 	}
-	tar.create(
+	await tar.create(
 		{
 			...tarDefaultConfig,
 			...{
