@@ -8,6 +8,7 @@ import * as fs from "fs";
 
 import { createRegistry, createDockerRegistry } from "./registry";
 import appLayerCreator from "./appLayerCreator";
+import dockerExporter from "./dockerExporter";
 import tarExporter from "./tarExporter";
 
 import logger from "./logger";
@@ -28,6 +29,7 @@ const possibleArgs = {
 		"Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/",
 	"--toToken <token>": "Optional: Authentication token for target registry",
 	"--toTar <path>": "Optional: Export to tar file",
+	"--toDocker": "Optional: Export to local docker registry",
 	"--registry <path>": "Optional: Convenience argument for setting both from and to registry",
 	"--platform <platform>": "Optional: Preferred platform, e.g. linux/amd64 or arm64",
 	"--token <path>": "Optional: Convenience argument for setting token for both from and to registry",
@@ -198,9 +200,9 @@ if (options.token) {
 exitWithErrorIf(!options.folder, "--folder must be specified");
 exitWithErrorIf(!options.fromImage, "--fromImage must be specified");
 exitWithErrorIf(!options.toImage, "--toImage must be specified");
-exitWithErrorIf(!options.toRegistry && !options.toTar, "Must specify either --toTar or --toRegistry");
+exitWithErrorIf(!options.toRegistry && !options.toTar && !options.toDocker, "Must specify either --toTar, --toRegistry or --toDocker");
 exitWithErrorIf(
-	!options.toRegistry && !options.toToken && !options.toTar,
+	!!options.toRegistry && !options.toToken,
 	"A token must be given when uploading to docker hub",
 );
 
@@ -256,6 +258,14 @@ async function run(options: Options) {
 
 	await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
+	if (options.toDocker) {
+		if (!await dockerExporter.isAvailable()) {
+			throw new Error("Docker executable not found on path. Unable to export to local docker registry.")
+		}
+		const dockerDir = path.join(tmpdir, "toDocker")
+		await tarExporter.saveToTar(todir, tmpdir, dockerDir, [options.toImage], options)
+		await dockerExporter.load(dockerDir);
+	}
 	if (options.toTar) {
 		await tarExporter.saveToTar(todir, tmpdir, options.toTar, [options.toImage], options);
 	}
@@ -269,6 +279,7 @@ async function run(options: Options) {
 }
 
 logger.debug("Running with config:", options);
+
 run(options as Options)
 	.then(() => {
 		logger.info("Done!");

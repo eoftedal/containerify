@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.5.0] - TBD
+
+### Added
+
+- Option to import created image directly into local docker registry
+
 ## [2.4.0] - 2023-06-21
 
 - Internal refactoring
