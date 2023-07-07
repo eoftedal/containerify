@@ -5,6 +5,7 @@
 ### Added
 
 - Option to import created image directly into local docker registry
+- Bumping dependencies
 
 ## [2.4.0] - 2023-06-21
 
