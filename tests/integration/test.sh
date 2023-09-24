@@ -29,6 +29,20 @@ tar -xf tmp/v1.tar -C tmp/v1/content/
 tar -xf tmp/v2.tar -C tmp/v2/content/
 tar -xf tmp/v3.tar -C tmp/v3/content/
 
+jqscript='if (.config.Entrypoint == ["npm", "start"]) then true else false end'
+
+echo "Checking that entrypoint is correctly set for 1 ..."
+if [[ $(cat tmp/v1/content/config.json | jq "$jqscript") != "true" ]]; then
+  echo "ERROR: wrong entrypoint set";
+  exit 1;
+fi
+
+echo "Checking that entrypoint is correctly set for 3 ..."
+if [[ $(cat tmp/v3/content/config.json | jq "$jqscript") != "true" ]]; then
+  echo "ERROR: wrong entrypoint set";
+  exit 1;
+fi
+
 echo "Checking that config files for 1 and 2 are equal ..."
 if ! cmp -s tmp/v1/content/config.json tmp/v2/content/config.json; then
    echo "ERROR: config.jsons are different"; 
