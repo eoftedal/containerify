@@ -1,0 +1,8 @@
+{
+  "fromImage": "node:alpine",
+  "toImage": "containerify:demo-app",
+  "folder": ".",
+  "customContent": [
+    "customContent"
+  ]
+}
