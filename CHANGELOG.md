@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.5.1] - TBD
+
+### Fixed
+
+- Layers for `ENTRYPOINT`, `WORKDIR` and user information are now being added when using `customContent`
+
 ## [2.5.0] - TBD
 
 ### Added
