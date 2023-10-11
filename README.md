@@ -26,10 +26,10 @@ if needed).
 
 ```
 npm run build
-containerify --fromImage nginx:alpine --folder . --toImage frontend:latest --customContent dist:/var/www/html --toRegistry https://registry.example.com/v2/
+containerify --fromImage nginx:alpine --folder . --toImage frontend:latest --customContent dist:/usr/share/nginx/html --toRegistry https://registry.example.com/v2/
 ```
 
-This will take nginx:alpine and copy the files in `./dist/` into `/var/www/html`.
+This will take nginx:alpine and copy the files in `./dist/` into `/usr/share/nginx/html`.
 
 ### Command line options
 
