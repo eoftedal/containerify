@@ -21,15 +21,14 @@ containerify --fromImage node:13-slim --folder src/ --toImage myapp:latest --toR
 ### customContent - Adding compiled code to non-node container
 
 If you want to build a non-node container (e.g. add compiled frontend code to an nginx container), you can use `--customContent`. When doing this
-the normal `node_modules` etc layers will not be added, and workdir, user and entrypoint will not be overridden (allthough they can be explicitely modified
-if needed).
+the normal `node_modules` etc layers will not be added. By default it does _NOT_ modify then entrypoint, user or workdir, so the base image settings are still used when running. You can still override with `--entrypoint` etc. if needed.
 
 ```
 npm run build  # or some other build command
 containerify --fromImage nginx:alpine --folder . --toImage frontend:latest --customContent dist:/usr/share/nginx/html --toRegistry https://registry.example.com/v2/
 ```
 
-This will take the `nginx:alpine` image, and copy the files from `./dist/` into `/usr/share/nginx/html`. By default it does _NOT_ modify then entrypoint, user or workdir, so the base image settings are still used when running. You can still override with `--entrypoint` etc. if needed.
+This will take the `nginx:alpine` image, and copy the files from `./dist/` into `/usr/share/nginx/html`.
 
 ### Command line options
 
