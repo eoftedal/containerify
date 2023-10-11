@@ -25,11 +25,11 @@ the normal `node_modules` etc layers will not be added, and workdir, user and en
 if needed).
 
 ```
-npm run build
+npm run build  # or some other build command
 containerify --fromImage nginx:alpine --folder . --toImage frontend:latest --customContent dist:/usr/share/nginx/html --toRegistry https://registry.example.com/v2/
 ```
 
-This will take nginx:alpine and copy the files in `./dist/` into `/usr/share/nginx/html`.
+This will take the `nginx:alpine` image, and copy the files from `./dist/` into `/usr/share/nginx/html`. By default it does _NOT_ modify then entrypoint, user or workdir, so the base image settings are still used when running. You can still override with `--entrypoint` etc. if needed.
 
 ### Command line options
 
