@@ -36,9 +36,9 @@ tar -xf tmp/v4.tar -C tmp/v4/content/
 
 jqscript='if (.config.Entrypoint == ["npm", "start"]) then true else false end'
 
-echo "Checking that entrypoint is correctly set for 3 ..."
+echo "Checking that entrypoint is correctly set for 4 ..."
 if [[ $(cat tmp/v4/content/config.json | jq "$jqscript") != "true" ]]; then
-  echo "ERROR: wrong entrypoint set for 3";
+  echo "ERROR: wrong entrypoint set for 4";
   exit 1;
 fi
 

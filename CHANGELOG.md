@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.6.0] - 2023-10-11
+
+### Added
+
+- You can now specify the destination path for `customContent` as `--customContent local-path:/path/in/container`
+
 ## [2.5.2] - 2023-10-11
 
 ### Fixed

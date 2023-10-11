@@ -47,7 +47,7 @@ const possibleArgs = {
 	"--verbose": "Verbose logging",
 	"--allowInsecureRegistries": "Allow insecure registries (with self-signed/untrusted cert)",
 	"--customContent <dirs/files>":
-		"Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead",
+		"Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as local-path:absolute-container-path if you want to place it in a specific location",
 	"--extraContent <dirs/files>":
 		"Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc",
 	"--layerOwner <gid:uid>": "Optional: Set specific gid and uid on files in the added layers",
@@ -56,9 +56,9 @@ const possibleArgs = {
 	"--version": "Get containerify version",
 } as const;
 
-function setKeyValue(target: Record<string, string>, keyValue: string, separator = "=") {
+function setKeyValue(target: Record<string, string>, keyValue: string, separator = "=", defaultValue?: string) {
 	const [k, v] = keyValue.split(separator, 2);
-	target[k.trim()] = v.trim();
+	target[k.trim()] = v?.trim() ?? defaultValue;
 }
 
 const cliLabels: Record<string, string> = {};
@@ -129,9 +129,9 @@ Object.keys(envOpt)
 
 const envs = { ...configFromFile.envs, ...envOpt, ...cliEnv }; //Let cli arguments override file
 
-const customContent: string[] = [];
-configFromFile.customContent?.forEach((c: string) => customContent.push(c));
-cliOptions.customContent?.split(",").forEach((c: string) => customContent.push(c));
+const customContent: Record<string, string> = {};
+configFromFile.customContent?.forEach((c: string) => setKeyValue(customContent, c, ":", c));
+cliOptions.customContent?.split(",").forEach((c: string) => setKeyValue(customContent, c, ":", c));
 
 const cliExtraContent: Record<string, string> = {};
 cliOptions.extraContent?.split(",").forEach((x: string) => setKeyValue(cliExtraContent, x, ":"));
@@ -224,7 +224,7 @@ if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/"))
 	options.fromImage = "library/" + options.fromImage;
 }
 
-options.customContent.forEach((p) => {
+Object.keys(options.customContent).forEach((p) => {
 	exitWithErrorIf(!fs.existsSync(p), "Could not find " + p + " in the base folder " + options.folder);
 });
 

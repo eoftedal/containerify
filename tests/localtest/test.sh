@@ -43,7 +43,7 @@ docker run -d \
 
 
 printf "* Pulling node:alpine as base image...\n"
-docker pull node:alpine  > /dev/null
+docker pull node:alpine  &>  /dev/null
 
 printf "* Pushing base image to local containerify test registry...\n"
 docker tag node:alpine localhost:5443/node > /dev/null
@@ -54,7 +54,7 @@ printf "* Running containerify to pull from and push result to the local contain
 
 
 printf "\n* Pulling image from registry to local docker daemon...\n"
-docker pull localhost:5443/containerify-integration-test:localtest > /dev/null
+docker pull localhost:5443/containerify-integration-test:localtest &> /dev/null
 
 printf "* Running image on local docker daemon...\n"
 docker run --rm -it localhost:5443/containerify-integration-test:localtest

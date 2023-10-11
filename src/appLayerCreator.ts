@@ -185,7 +185,7 @@ function parseCommandLineToParts(entrypoint: string) {
 }
 
 async function addAppLayers(options: Options, config: Config, todir: string, manifest: Manifest, tmpdir: string) {
-	if (options.customContent.length > 0) {
+	if (Object.entries(options.customContent).length > 0) {
 		// We only add these layers if they have been explicitely set for customContent. This allows customContent
 		// to be used to add compiled frontend code to an nginx container without also modifying the entrypoint, user,
 		// and workdir.
@@ -194,7 +194,7 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 		if (options.nonDefaults.user) await addUserLayer(options, config, options.nonDefaults.user);
 		await addEnvsLayer(options, config);
 		await addLabelsLayer(options, config);
-		await addDataLayer(tmpdir, todir, options, config, manifest, options.customContent, "custom");
+		await addDataLayer(tmpdir, todir, options, config, manifest, Object.entries(options.customContent), "custom");
 	} else {
 		await addWorkdirLayer(options, config, options.workdir);
 		await addEntrypointLayer(options, config, options.entrypoint);
