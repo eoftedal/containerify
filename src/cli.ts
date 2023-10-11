@@ -33,9 +33,11 @@ const possibleArgs = {
 	"--registry <path>": "Optional: Convenience argument for setting both from and to registry",
 	"--platform <platform>": "Optional: Preferred platform, e.g. linux/amd64 or arm64",
 	"--token <path>": "Optional: Convenience argument for setting token for both from and to registry",
-	"--user <user>": "Optional: User account to run process in container - default: 1000",
-	"--workdir <directory>": "Optional: Workdir where node app will be added and run from - default: /app",
-	"--entrypoint <entrypoint>": "Optional: Entrypoint when starting container - default: npm start",
+	"--user <user>": "Optional: User account to run process in container - default: 1000 (empty for customContent)",
+	"--workdir <directory>":
+		"Optional: Workdir where node app will be added and run from - default: /app (empty for customContent)",
+	"--entrypoint <entrypoint>":
+		"Optional: Entrypoint when starting container - default: npm start (empty for customContent)",
 	"--labels <labels>": "Optional: Comma-separated list of key value pairs to use as labels",
 	"--label <label>": "Optional: Single label (name=value). This option can be used multiple times.",
 	"--envs <envs>": "Optional: Comma-separated list of key value pairs to use av environment variables.",
@@ -145,14 +147,23 @@ const cliParams: Record<string, string> = omit(cliOptions, [
 	"extraContent",
 ]);
 
-const options: Options = {
-	...defaultOptions,
+const setOptions: Options = {
 	...configFromFile,
 	...cliParams,
 	customContent,
 	extraContent,
 	labels,
 	envs: Object.entries(envs).map(([k, v]) => `${k}=${v}`),
+};
+
+const options: Options = {
+	...defaultOptions,
+	...setOptions,
+	nonDefaults: {
+		user: setOptions.user,
+		workdir: setOptions.workdir,
+		entrypoint: setOptions.entrypoint,
+	},
 };
 
 function exitWithErrorIf(check: boolean, error: string) {
@@ -200,11 +211,11 @@ if (options.token) {
 exitWithErrorIf(!options.folder, "--folder must be specified");
 exitWithErrorIf(!options.fromImage, "--fromImage must be specified");
 exitWithErrorIf(!options.toImage, "--toImage must be specified");
-exitWithErrorIf(!options.toRegistry && !options.toTar && !options.toDocker, "Must specify either --toTar, --toRegistry or --toDocker");
 exitWithErrorIf(
-	!!options.toRegistry && !options.toToken,
-	"A token must be given when uploading to docker hub",
+	!options.toRegistry && !options.toTar && !options.toDocker,
+	"Must specify either --toTar, --toRegistry or --toDocker",
 );
+exitWithErrorIf(!!options.toRegistry && !options.toToken, "A token must be given when uploading to docker hub");
 
 if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
 if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
@@ -231,11 +242,8 @@ if (options.layerCacheFolder) {
 	}
 }
 
-Object.keys(options.extraContent).forEach(k => {
-	exitWithErrorIf(
-		!fs.existsSync(options.folder + k),
-		"Could not find `" + k + "` in the folder " + options.folder,
-	);
+Object.keys(options.extraContent).forEach((k) => {
+	exitWithErrorIf(!fs.existsSync(options.folder + k), "Could not find `" + k + "` in the folder " + options.folder);
 });
 
 async function run(options: Options) {
@@ -259,11 +267,11 @@ async function run(options: Options) {
 	await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
 	if (options.toDocker) {
-		if (!await dockerExporter.isAvailable()) {
-			throw new Error("Docker executable not found on path. Unable to export to local docker registry.")
+		if (!(await dockerExporter.isAvailable())) {
+			throw new Error("Docker executable not found on path. Unable to export to local docker registry.");
 		}
-		const dockerDir = path.join(tmpdir, "toDocker")
-		await tarExporter.saveToTar(todir, tmpdir, dockerDir, [options.toImage], options)
+		const dockerDir = path.join(tmpdir, "toDocker");
+		await tarExporter.saveToTar(todir, tmpdir, dockerDir, [options.toImage], options);
 		await dockerExporter.load(dockerDir);
 	}
 	if (options.toTar) {

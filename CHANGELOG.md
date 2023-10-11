@@ -1,12 +1,18 @@
 # Changelog
 
-## [2.5.1] - TBD
+## [2.5.2] - 2023-10-11
+
+### Fixed
+
+- Reverting 2.5.1, but allowing `ENTRYPOINT`, `WORKDIR` and `USER` to be explicitely set when using `customContent`
+
+## [2.5.1] - 2023-10-11
 
 ### Fixed
 
 - Layers for `ENTRYPOINT`, `WORKDIR` and user information are now being added when using `customContent`
 
-## [2.5.0] - TBD
+## [2.5.0] - 2023-07-07
 
 ### Added
 

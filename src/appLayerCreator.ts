@@ -185,28 +185,19 @@ function parseCommandLineToParts(entrypoint: string) {
 }
 
 async function addAppLayers(options: Options, config: Config, todir: string, manifest: Manifest, tmpdir: string) {
-	addEmptyLayer(
-		config,
-		options,
-		`WORKDIR ${options.workdir}`,
-		(config) => (config.config.WorkingDir = options.workdir),
-	);
-	const entrypoint = parseCommandLineToParts(options.entrypoint);
-	addEmptyLayer(
-		config,
-		options,
-		`ENTRYPOINT ${JSON.stringify(entrypoint)}`,
-		(config) => (config.config.Entrypoint = entrypoint),
-	);
-	addEmptyLayer(config, options, `USER ${options.user}`, (config) => {
-		config.config.User = options.user;
-		config.container_config.User = options.user;
-	});
-	await addEnvsLayer(options, config);
-	await addLabelsLayer(options, config);
 	if (options.customContent.length > 0) {
+		if (options.nonDefaults.workdir) await addWorkdirLayer(options, config, options.nonDefaults.workdir);
+		if (options.nonDefaults.entrypoint) await addEntrypointLayer(options, config, options.nonDefaults.entrypoint);
+		if (options.nonDefaults.user) await addUserLayer(options, config, options.nonDefaults.user);
+		await addEnvsLayer(options, config);
+		await addLabelsLayer(options, config);
 		await addDataLayer(tmpdir, todir, options, config, manifest, options.customContent, "custom");
 	} else {
+		await addWorkdirLayer(options, config, options.workdir);
+		await addEntrypointLayer(options, config, options.entrypoint);
+		await addUserLayer(options, config, options.user);
+		await addEnvsLayer(options, config);
+		await addLabelsLayer(options, config);
 		const appFiles = (await fs.readdir(options.folder)).filter((l) => !ignore.includes(l));
 		const depLayerContent = appFiles.filter((l) => depLayerPossibles.includes(l));
 		const appLayerContent = appFiles.filter((l) => !depLayerPossibles.includes(l));
@@ -217,6 +208,24 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 	for (const extraContent of Object.entries(options.extraContent)) {
 		await addDataLayer(tmpdir, todir, options, config, manifest, [extraContent], "extra");
 	}
+}
+async function addWorkdirLayer(options: Options, config: Config, workdir: string) {
+	addEmptyLayer(config, options, `WORKDIR ${workdir}`, (config) => (config.config.WorkingDir = workdir));
+}
+async function addEntrypointLayer(options: Options, config: Config, entrypoint: string) {
+	const entrypointParts = parseCommandLineToParts(entrypoint);
+	addEmptyLayer(
+		config,
+		options,
+		`ENTRYPOINT ${JSON.stringify(entrypoint)}`,
+		(config) => (config.config.Entrypoint = entrypointParts),
+	);
+}
+async function addUserLayer(options: Options, config: Config, user: string) {
+	addEmptyLayer(config, options, `USER ${user}`, (config) => {
+		config.config.User = user;
+		config.container_config.User = user;
+	});
 }
 
 async function addLabelsLayer(options: Options, config: Config) {

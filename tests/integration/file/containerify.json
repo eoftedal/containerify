@@ -1,8 +1,9 @@
 {
-  "fromImage": "node:alpine",
-  "toImage": "containerify:demo-app",
-  "folder": ".",
-  "customContent": [
-    "customContent"
-  ]
+	"fromImage": "node:alpine",
+	"toImage": "containerify:demo-app",
+	"folder": ".",
+	"customContent": ["customContent"],
+	"entrypoint": "npm start",
+	"user": "1000",
+	"workdir": "/app"
 }

@@ -36,51 +36,45 @@ tar -xf tmp/v4.tar -C tmp/v4/content/
 
 jqscript='if (.config.Entrypoint == ["npm", "start"]) then true else false end'
 
-echo "Checking that entrypoint is correctly set for 1 ..."
-if [[ $(cat tmp/v1/content/config.json | jq "$jqscript") != "true" ]]; then
-  echo "ERROR: wrong entrypoint set";
-  exit 1;
-fi
-
 echo "Checking that entrypoint is correctly set for 3 ..."
-if [[ $(cat tmp/v3/content/config.json | jq "$jqscript") != "true" ]]; then
-  echo "ERROR: wrong entrypoint set";
+if [[ $(cat tmp/v4/content/config.json | jq "$jqscript") != "true" ]]; then
+  echo "ERROR: wrong entrypoint set for 3";
   exit 1;
 fi
 
 echo "Checking that config files for 1 and 2 are equal ..."
 if ! cmp -s tmp/v1/content/config.json tmp/v2/content/config.json; then
-   echo "ERROR: config.jsons are different"; 
+   echo "ERROR: config.jsons are different for 1 and 2"; 
    exit 1;
 fi
 
 echo "Checking that manifest files for 1 and 2 are equal ..."
 if ! cmp -s tmp/v1/content/manifest.json tmp/v2/content/manifest.json; then
-   echo "ERROR: manifest.jsons are different"; 
+   echo "ERROR: manifest.jsons are different for 1 and 2"; 
    exit 1;
 fi
 
 echo "Checking that config files for 1 and 3 are not equal ..."
 if cmp -s tmp/v1/content/config.json tmp/v3/content/config.json; then
-   echo "ERROR: config.jsons are the same"; 
+   echo "ERROR: config.jsons are the same for 1 and 3"; 
    exit 1;
 fi
 
 echo "Checking that manifest files for 1 and 3 are not equal ..."
 if cmp -s tmp/v1/content/manifest.json tmp/v3/content/manifest.json; then
-   echo "ERROR: manifest.jsons are the same"; 
+   echo "ERROR: manifest.jsons are the same for 1 and 3"; 
    exit 1;
 fi
 
 echo "Checking that config files for 3 and 4 are equal ..."
-if ! cmp -s tmp/v3/content/config.json tmp/v4/content/config.json; then
-   echo "ERROR: config.jsons are not the same";
+if cmp -s tmp/v3/content/config.json tmp/v4/content/config.json; then
+   echo "ERROR: config.jsons are the same for 3 and 4";
    exit 1;
 fi
 
 echo "Checking that manifest files for 3 and 4 are equal ..."
 if ! cmp -s tmp/v3/content/manifest.json tmp/v4/content/manifest.json; then
-   echo "ERROR: manifest.jsons are not the same";
+   echo "ERROR: manifest.jsons are not the same for 3 and 4";
    exit 1;
 fi
 

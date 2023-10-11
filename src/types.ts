@@ -92,4 +92,9 @@ export type Options = {
 	layerOwner?: string;
 	buildFolder?: string;
 	layerCacheFolder?: string;
+	nonDefaults: {
+		user?: string;
+		workdir?: string;
+		entrypoint?: string;
+	};
 };
