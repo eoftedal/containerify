@@ -18,6 +18,19 @@ This will pull the `node:13-slim` image from Docker hub, build the image by addi
 containerify --fromImage node:13-slim --folder src/ --toImage myapp:latest --toRegistry https://registry.example.com/v2/ --setTimeStamp=$(git show -s --format="%aI" HEAD)
 ```
 
+### customContent - Adding compiled code to non-node container
+
+If you want to build a non-node container (e.g. add compiled frontend code to an nginx container), you can use `--customContent`. When doing this
+the normal `node_modules` etc layers will not be added, and workdir, user and entrypoint will not be overridden (allthough they can be explicitely modified
+if needed).
+
+```
+npm run build
+containerify --fromImage nginx:alpine --folder . --toImage frontend:latest --customContent dist:/var/www/html --toRegistry https://registry.example.com/v2/
+```
+
+This will take nginx:alpine and copy the files in `./dist/` into `/var/www/html`.
+
 ### Command line options
 
 ```
