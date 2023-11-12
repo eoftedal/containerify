@@ -1,20 +1,20 @@
 import * as https from "https";
 import * as http from "http";
 import * as URL from "url";
+import * as fss from "fs";
 import { promises as fs } from "fs";
 import * as path from "path";
 import * as fse from "fs-extra";
-import * as fss from "fs";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
-import { Config, Image, Index, Layer, Manifest, IndexManifest, PartialManifestConfig, Platform } from "./types";
+import { Config, Image, Index, IndexManifest, Layer, Manifest, PartialManifestConfig, Platform } from "./types";
 import { DockerV2, OCI } from "./MIMETypes";
 import { getLayerTypeFileEnding } from "./utils";
 
 type Headers = Record<string, string>;
 
-const redirectCodes = [307, 303, 302];
+const redirectCodes = [308, 307, 303, 302, 301];
 
 function request(options: https.RequestOptions, callback: (res: http.IncomingMessage) => void) {
 	return (options.protocol == "https:" ? https : http).request(options, (res) => {
@@ -122,7 +122,11 @@ function buildHeaders(accept: string, auth: string) {
 	return headers;
 }
 
-function headOk(url: string, headers: Headers): Promise<boolean> {
+function headOk(url: string, headers: Headers, optimisticCheck = false, depth =0): Promise<boolean> {
+	if (depth >= 5) {
+		logger.info("Followed five redirects, assuming layer does not exist");
+		return new Promise((resolve) => resolve(false));
+	}
 	return new Promise((resolve, reject) => {
 		logger.debug(`HEAD ${url}`);
 		const options: http.RequestOptions = URL.parse(url);
@@ -130,8 +134,20 @@ function headOk(url: string, headers: Headers): Promise<boolean> {
 		options.method = "HEAD";
 		request(options, (res) => {
 			logger.debug(`HEAD ${url}`, res.statusCode);
+			// Not found
 			if (res.statusCode == 404) return resolve(false);
+			// OK
 			if (res.statusCode == 200) return resolve(true);
+			// Redirected
+			if (redirectCodes.includes(res.statusCode ?? 0)  && res.headers.location) {
+				if (optimisticCheck) return resolve(true)
+				return resolve(headOk(res.headers.location, headers, optimisticCheck, ++depth));
+			}
+			// Unauthorized
+			// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
+			if (res.statusCode == 401) {
+				return resolve(false);
+			}
 			reject(toError(res));
 		}).end();
 	});
@@ -171,12 +187,12 @@ function uploadContent(
 	});
 }
 
-export function createRegistry(registryBaseUrl: string, token: string) {
+export function createRegistry(registryBaseUrl: string, token: string, optimisticToRegistryCheck = false) {
 	const auth = token.startsWith("Basic ") ? token : "Bearer " + token;
 
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
-		return await headOk(url, buildHeaders(layer.mediaType, auth));
+		return await headOk(url, buildHeaders(layer.mediaType, auth), optimisticToRegistryCheck, 0);
 	}
 
 	async function uploadLayerContent(uploadUrl: string, layer: Layer, dir: string) {
@@ -360,6 +376,7 @@ export function createDockerRegistry(auth?: string) {
 		);
 		return resp.token;
 	}
+
 	async function download(imageStr: string, folder: string, platform: Platform, cacheFolder?: string) {
 		const image = parseImage(imageStr);
 		if (!auth) auth = await getToken(image);

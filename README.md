@@ -43,6 +43,7 @@ Options:
   --fromRegistry <registry url>  Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/
   --fromToken <token>            Optional: Authentication token for from registry
   --toRegistry <registry url>    Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/
+  --optimisticToRegistryCheck    Optional: Treat redirects as layer existing in remote registry. Potentially unsafe, but could save bandwidth.
   --toToken <token>              Optional: Authentication token for target registry
   --toTar <path>                 Optional: Export to tar file
   --registry <path>              Optional: Convenience argument for setting both from and to registry

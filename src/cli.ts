@@ -27,6 +27,7 @@ const possibleArgs = {
 	"--fromToken <token>": "Optional: Authentication token for from registry",
 	"--toRegistry <registry url>":
 		"Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/",
+	"--optimisticToRegistryCheck": "Treat redirects as layer existing in remote registry. Potentially unsafe, but can save bandwidth.",
 	"--toToken <token>": "Optional: Authentication token for target registry",
 	"--toTar <path>": "Optional: Export to tar file",
 	"--toDocker": "Optional: Export to local docker registry",
@@ -278,7 +279,7 @@ async function run(options: Options) {
 		await tarExporter.saveToTar(todir, tmpdir, options.toTar, [options.toImage], options);
 	}
 	if (options.toRegistry) {
-		const toRegistry = createRegistry(options.toRegistry, options.toToken ?? "");
+		const toRegistry = createRegistry(options.toRegistry, options.toToken ?? "", options.optimisticToRegistryCheck);
 		await toRegistry.upload(options.toImage, todir);
 	}
 	logger.debug("Deleting " + tmpdir + " ...");

@@ -73,6 +73,7 @@ export type Options = {
 	fromRegistry?: string;
 	fromToken?: string;
 	toRegistry?: string;
+	optimisticToRegistryCheck?: boolean;
 	toToken?: string;
 	toTar?: string;
 	toDocker?: boolean;
