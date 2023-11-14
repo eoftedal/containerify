@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.6.1] - 2023-11-12
+
+### Added
+
+- Option for optimistic remote registry cache checking. i.e. treat redirects as layer existing
+
+### Fixed
+
+- Follow redirects when checking for existing layers in remote registry
+
+
 ## [2.6.0] - 2023-10-11
 
 ### Added
