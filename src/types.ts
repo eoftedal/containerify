@@ -99,3 +99,8 @@ export type Options = {
 		entrypoint?: string;
 	};
 };
+
+export enum InsecureRegistrySupport {
+	NO,
+	YES,
+}

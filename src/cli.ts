@@ -12,7 +12,7 @@ import dockerExporter from "./dockerExporter";
 import tarExporter from "./tarExporter";
 
 import logger from "./logger";
-import { Options } from "./types";
+import { InsecureRegistrySupport, Options } from "./types";
 import { omit, getPreferredPlatform } from "./utils";
 import { ensureEmptyDir } from "./fileutil";
 import { VERSION } from "./version";
@@ -27,7 +27,8 @@ const possibleArgs = {
 	"--fromToken <token>": "Optional: Authentication token for from registry",
 	"--toRegistry <registry url>":
 		"Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/",
-	"--optimisticToRegistryCheck": "Treat redirects as layer existing in remote registry. Potentially unsafe, but can save bandwidth.",
+	"--optimisticToRegistryCheck":
+		"Treat redirects as layer existing in remote registry. Potentially unsafe, but can save bandwidth.",
 	"--toToken <token>": "Optional: Authentication token for target registry",
 	"--toTar <path>": "Optional: Export to tar file",
 	"--toDocker": "Optional: Export to local docker registry",
@@ -175,7 +176,6 @@ function exitWithErrorIf(check: boolean, error: string) {
 }
 
 if (options.verbose) logger.enableDebug();
-if (options.allowInsecureRegistries) process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
 
 exitWithErrorIf(!!options.registry && !!options.fromRegistry, "Do not set both --registry and --fromRegistry");
 exitWithErrorIf(!!options.registry && !!options.toRegistry, "Do not set both --registry and --toRegistry");
@@ -254,10 +254,11 @@ async function run(options: Options) {
 	logger.debug("Using " + tmpdir);
 	const fromdir = await ensureEmptyDir(path.join(tmpdir, "from"));
 	const todir = await ensureEmptyDir(path.join(tmpdir, "to"));
+	const allowInsecure = options.allowInsecureRegistries ? InsecureRegistrySupport.YES : InsecureRegistrySupport.NO;
 
 	const fromRegistry = options.fromRegistry
-		? createRegistry(options.fromRegistry, options.fromToken ?? "")
-		: createDockerRegistry(options.fromToken);
+		? createRegistry(options.fromRegistry, options.fromToken ?? "", allowInsecure)
+		: createDockerRegistry(allowInsecure, options.fromToken);
 	await fromRegistry.download(
 		options.fromImage,
 		fromdir,
@@ -279,7 +280,12 @@ async function run(options: Options) {
 		await tarExporter.saveToTar(todir, tmpdir, options.toTar, [options.toImage], options);
 	}
 	if (options.toRegistry) {
-		const toRegistry = createRegistry(options.toRegistry, options.toToken ?? "", options.optimisticToRegistryCheck);
+		const toRegistry = createRegistry(
+			options.toRegistry,
+			options.toToken ?? "",
+			allowInsecure,
+			options.optimisticToRegistryCheck,
+		);
 		await toRegistry.upload(options.toImage, todir);
 	}
 	logger.debug("Deleting " + tmpdir + " ...");

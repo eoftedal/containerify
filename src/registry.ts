@@ -8,7 +8,17 @@ import * as fse from "fs-extra";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
-import { Config, Image, Index, IndexManifest, Layer, Manifest, PartialManifestConfig, Platform } from "./types";
+import {
+	Config,
+	Image,
+	Index,
+	IndexManifest,
+	InsecureRegistrySupport,
+	Layer,
+	Manifest,
+	PartialManifestConfig,
+	Platform,
+} from "./types";
 import { DockerV2, OCI } from "./MIMETypes";
 import { getLayerTypeFileEnding } from "./utils";
 
@@ -16,7 +26,12 @@ type Headers = Record<string, string>;
 
 const redirectCodes = [308, 307, 303, 302, 301];
 
-function request(options: https.RequestOptions, callback: (res: http.IncomingMessage) => void) {
+function request(
+	options: https.RequestOptions,
+	allowInsecure: InsecureRegistrySupport,
+	callback: (res: http.IncomingMessage) => void,
+) {
+	if (allowInsecure == InsecureRegistrySupport.YES) options.rejectUnauthorized = false;
 	return (options.protocol == "https:" ? https : http).request(options, (res) => {
 		callback(res);
 	});
@@ -41,10 +56,10 @@ function toError(res: http.IncomingMessage) {
 	return `Unexpected HTTP status ${res.statusCode} : ${res.statusMessage}`;
 }
 
-function dl(uri: string, headers: Headers): Promise<string> {
+function dl(uri: string, headers: Headers, allowInsecure: InsecureRegistrySupport): Promise<string> {
 	logger.debug("dl", uri);
 	return new Promise((resolve, reject) => {
-		followRedirects(uri, headers, (result) => {
+		followRedirects(uri, headers, allowInsecure, (result) => {
 			if ("error" in result) return reject(result.error);
 			const { res } = result;
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
@@ -59,12 +74,19 @@ function dl(uri: string, headers: Headers): Promise<string> {
 	});
 }
 
-async function dlJson<T>(uri: string, headers: Headers): Promise<T> {
-	const data = await dl(uri, headers);
+async function dlJson<T>(uri: string, headers: Headers, allowInsecure: InsecureRegistrySupport): Promise<T> {
+	const data = await dl(uri, headers, allowInsecure);
 	return JSON.parse(Buffer.from(data).toString("utf-8"));
 }
 
-function dlToFile(uri: string, file: string, headers: Headers, cacheFolder?: string, skipCache = false): Promise<void> {
+function dlToFile(
+	uri: string,
+	file: string,
+	headers: Headers,
+	allowInsecure: InsecureRegistrySupport,
+	cacheFolder?: string,
+	skipCache = false,
+): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const [filename] = file.split("/").slice(-1);
 		if (cacheFolder && !skipCache) {
@@ -72,7 +94,7 @@ function dlToFile(uri: string, file: string, headers: Headers, cacheFolder?: str
 				.createReadStream(cacheFolder + filename)
 				.on("error", () => {
 					logger.debug("Not found in layer cache " + cacheFolder + filename + " - Downloading...");
-					dlToFile(uri, file, headers, cacheFolder, true).then(() => resolve());
+					dlToFile(uri, file, headers, allowInsecure, cacheFolder, true).then(() => resolve());
 				})
 				.pipe(fss.createWriteStream(file))
 				.on("finish", () => {
@@ -81,7 +103,7 @@ function dlToFile(uri: string, file: string, headers: Headers, cacheFolder?: str
 				});
 			return;
 		}
-		followRedirects(uri, headers, (result) => {
+		followRedirects(uri, headers, allowInsecure, (result) => {
 			if ("error" in result) return reject(result.error);
 			const { res } = result;
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
@@ -100,17 +122,23 @@ function dlToFile(uri: string, file: string, headers: Headers, cacheFolder?: str
 
 type Callback = (result: { error: string } | { res: http.IncomingMessage }) => void;
 
-function followRedirects(uri: string, headers: Headers, cb: Callback, count = 0) {
+function followRedirects(
+	uri: string,
+	headers: Headers,
+	allowInsecure: InsecureRegistrySupport,
+	cb: Callback,
+	count = 0,
+) {
 	logger.debug("rc", uri);
 	const options: https.RequestOptions = { ...URL.parse(uri) };
 	options.headers = headers;
 	options.method = "GET";
-	request(options, (res) => {
+	request(options, allowInsecure, (res) => {
 		if (redirectCodes.includes(res.statusCode ?? 0)) {
 			if (count > 10) return cb({ error: "Too many redirects for " + uri });
 			const location = res.headers.location;
 			if (!location) return cb({ error: "Redirect, but missing location header" });
-			return followRedirects(location, headers, cb, count + 1);
+			return followRedirects(location, headers, allowInsecure, cb, count + 1);
 		}
 		cb({ res });
 	}).end();
@@ -122,26 +150,32 @@ function buildHeaders(accept: string, auth: string) {
 	return headers;
 }
 
-function headOk(url: string, headers: Headers, optimisticCheck = false, depth =0): Promise<boolean> {
+function headOk(
+	url: string,
+	headers: Headers,
+	allowInsecure: InsecureRegistrySupport,
+	optimisticCheck = false,
+	depth = 0,
+): Promise<boolean> {
 	if (depth >= 5) {
 		logger.info("Followed five redirects, assuming layer does not exist");
 		return new Promise((resolve) => resolve(false));
 	}
 	return new Promise((resolve, reject) => {
 		logger.debug(`HEAD ${url}`);
-		const options: http.RequestOptions = URL.parse(url);
+		const options: https.RequestOptions = URL.parse(url);
 		options.headers = headers;
 		options.method = "HEAD";
-		request(options, (res) => {
+		request(options, allowInsecure, (res) => {
 			logger.debug(`HEAD ${url}`, res.statusCode);
 			// Not found
 			if (res.statusCode == 404) return resolve(false);
 			// OK
 			if (res.statusCode == 200) return resolve(true);
 			// Redirected
-			if (redirectCodes.includes(res.statusCode ?? 0)  && res.headers.location) {
-				if (optimisticCheck) return resolve(true)
-				return resolve(headOk(res.headers.location, headers, optimisticCheck, ++depth));
+			if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
+				if (optimisticCheck) return resolve(true);
+				return resolve(headOk(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
 			}
 			// Unauthorized
 			// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
@@ -157,13 +191,14 @@ function uploadContent(
 	uploadUrl: string,
 	file: string,
 	fileConfig: PartialManifestConfig,
+	allowInsecure: InsecureRegistrySupport,
 	auth: string,
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
 		logger.debug("Uploading: ", file);
 		let url = uploadUrl;
 		if (fileConfig.digest) url += (url.indexOf("?") == -1 ? "?" : "&") + "digest=" + fileConfig.digest;
-		const options: http.RequestOptions = URL.parse(url);
+		const options: https.RequestOptions = URL.parse(url);
 		options.method = "PUT";
 		options.headers = {
 			authorization: auth,
@@ -171,7 +206,7 @@ function uploadContent(
 			"content-type": fileConfig.mediaType,
 		};
 		logger.debug("POST", url);
-		const req = request(options, (res) => {
+		const req = request(options, allowInsecure, (res) => {
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
 			if ([200, 201, 202, 203].includes(res.statusCode ?? 0)) {
 				resolve();
@@ -187,18 +222,23 @@ function uploadContent(
 	});
 }
 
-export function createRegistry(registryBaseUrl: string, token: string, optimisticToRegistryCheck = false) {
+export function createRegistry(
+	registryBaseUrl: string,
+	token: string,
+	allowInsecure: InsecureRegistrySupport,
+	optimisticToRegistryCheck = false,
+) {
 	const auth = token.startsWith("Basic ") ? token : "Bearer " + token;
 
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
-		return await headOk(url, buildHeaders(layer.mediaType, auth), optimisticToRegistryCheck, 0);
+		return await headOk(url, buildHeaders(layer.mediaType, auth), allowInsecure, optimisticToRegistryCheck, 0);
 	}
 
 	async function uploadLayerContent(uploadUrl: string, layer: Layer, dir: string) {
 		logger.info(layer.digest);
 		const file = path.join(dir, getHash(layer.digest) + getLayerTypeFileEnding(layer));
-		await uploadContent(uploadUrl, file, layer, auth);
+		await uploadContent(uploadUrl, file, layer, allowInsecure, auth);
 	}
 
 	async function getUploadUrl(image: Image): Promise<string> {
@@ -207,7 +247,7 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 			const options: https.RequestOptions = URL.parse(url);
 			options.method = "POST";
 			options.headers = { authorization: auth };
-			request(options, (res) => {
+			request(options, allowInsecure, (res) => {
 				logger.debug("POST", `${url}`, res.statusCode);
 				if (res.statusCode == 202) {
 					const { location } = res.headers;
@@ -227,18 +267,23 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 		});
 	}
 
-	async function dlManifest(image: Image, preferredPlatform: Platform): Promise<Manifest> {
+	async function dlManifest(
+		image: Image,
+		preferredPlatform: Platform,
+		allowInsecure: InsecureRegistrySupport,
+	): Promise<Manifest> {
 		// Accept both manifests and index/manifest lists
 		const res = await dlJson<Manifest | Index>(
 			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
 			buildHeaders(`${OCI.index}, ${OCI.manifest}, ${DockerV2.index}, ${DockerV2.manifest}`, auth),
+			allowInsecure,
 		);
 
 		// We've received an OCI Index or Docker Manifest List and need to find which manifest we want
 		if (res.mediaType === OCI.index || res.mediaType === DockerV2.index) {
 			const availableManifests = (res as Index).manifests;
 			const adequateManifest = pickManifest(availableManifests, preferredPlatform);
-			return dlManifest({ ...image, tag: adequateManifest.digest }, preferredPlatform);
+			return dlManifest({ ...image, tag: adequateManifest.digest }, preferredPlatform, allowInsecure);
 		}
 
 		return res as Manifest;
@@ -277,17 +322,32 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 		throw new Error("No image matching requested architecture");
 	}
 
-	async function dlConfig(image: Image, config: Manifest["config"]): Promise<Config> {
-		return await dlJson<Config>(`${registryBaseUrl}${image.path}/blobs/${config.digest}`, buildHeaders("*/*", auth));
+	async function dlConfig(
+		image: Image,
+		config: Manifest["config"],
+		allowInsecure: InsecureRegistrySupport,
+	): Promise<Config> {
+		return await dlJson<Config>(
+			`${registryBaseUrl}${image.path}/blobs/${config.digest}`,
+			buildHeaders("*/*", auth),
+			allowInsecure,
+		);
 	}
 
-	async function dlLayer(image: Image, layer: Layer, folder: string, cacheFolder?: string): Promise<string> {
+	async function dlLayer(
+		image: Image,
+		layer: Layer,
+		folder: string,
+		allowInsecure: InsecureRegistrySupport,
+		cacheFolder?: string,
+	): Promise<string> {
 		const file = getHash(layer.digest) + getLayerTypeFileEnding(layer);
 
 		await dlToFile(
 			`${registryBaseUrl}${image.path}/blobs/${layer.digest}`,
 			path.join(folder, file),
 			buildHeaders(layer.mediaType, auth),
+			allowInsecure,
 			cacheFolder,
 		);
 		return file;
@@ -321,7 +381,7 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 		logger.info("Uploading config...");
 		const configUploadUrl = await getUploadUrl(image);
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
-		await uploadContent(configUploadUrl, configFile, manifest.config, auth);
+		await uploadContent(configUploadUrl, configFile, manifest.config, allowInsecure, auth);
 
 		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
@@ -329,6 +389,7 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
 			manifestFile,
 			{ mediaType: manifest.mediaType, size: manifestSize },
+			allowInsecure,
 			auth,
 		);
 	}
@@ -337,11 +398,11 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 		const image = parseImage(imageStr);
 
 		logger.info("Downloading manifest...");
-		const manifest = await dlManifest(image, preferredPlatform);
+		const manifest = await dlManifest(image, preferredPlatform, allowInsecure);
 		await fs.writeFile(path.join(folder, "manifest.json"), JSON.stringify(manifest));
 
 		logger.info("Downloading config...");
-		const config = await dlConfig(image, manifest.config);
+		const config = await dlConfig(image, manifest.config, allowInsecure);
 
 		if (config.architecture != preferredPlatform.architecture) {
 			logger.info(
@@ -355,7 +416,7 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 		await fs.writeFile(path.join(folder, "config.json"), JSON.stringify(config));
 
 		logger.info("Downloading layers...");
-		await Promise.all(manifest.layers.map((layer) => dlLayer(image, layer, folder, cacheFolder)));
+		await Promise.all(manifest.layers.map((layer) => dlLayer(image, layer, folder, allowInsecure, cacheFolder)));
 
 		logger.info("Image downloaded.");
 	}
@@ -366,13 +427,14 @@ export function createRegistry(registryBaseUrl: string, token: string, optimisti
 	};
 }
 
-export function createDockerRegistry(auth?: string) {
+export function createDockerRegistry(allowInsecure: InsecureRegistrySupport, auth?: string) {
 	const registryBaseUrl = "https://registry-1.docker.io/v2/";
 
 	async function getToken(image: Image) {
 		const resp = await dlJson<{ token: string }>(
 			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.path}:pull`,
 			{},
+			allowInsecure,
 		);
 		return resp.token;
 	}
@@ -380,12 +442,12 @@ export function createDockerRegistry(auth?: string) {
 	async function download(imageStr: string, folder: string, platform: Platform, cacheFolder?: string) {
 		const image = parseImage(imageStr);
 		if (!auth) auth = await getToken(image);
-		await createRegistry(registryBaseUrl, auth).download(imageStr, folder, platform, cacheFolder);
+		await createRegistry(registryBaseUrl, auth, allowInsecure).download(imageStr, folder, platform, cacheFolder);
 	}
 
 	async function upload(imageStr: string, folder: string) {
 		if (!auth) throw new Error("Need auth token to upload to Docker");
-		await createRegistry(registryBaseUrl, auth).upload(imageStr, folder);
+		await createRegistry(registryBaseUrl, auth, allowInsecure).upload(imageStr, folder);
 	}
 
 	return {
