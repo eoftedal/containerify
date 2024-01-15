@@ -193,6 +193,7 @@ function uploadContent(
 	fileConfig: PartialManifestConfig,
 	allowInsecure: InsecureRegistrySupport,
 	auth: string,
+	contentType: string,
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
 		logger.debug("Uploading: ", file);
@@ -203,7 +204,7 @@ function uploadContent(
 		options.headers = {
 			authorization: auth,
 			"content-length": fileConfig.size,
-			"content-type": fileConfig.mediaType,
+			"content-type": contentType,
 		};
 		logger.debug("POST", url);
 		const req = request(options, allowInsecure, (res) => {
@@ -222,13 +223,19 @@ function uploadContent(
 	});
 }
 
+function prepareToken(token: string) {
+	if (token.startsWith("Basic ")) return token;
+	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
+	return "Bearer " + token;
+}
+
 export function createRegistry(
 	registryBaseUrl: string,
 	token: string,
 	allowInsecure: InsecureRegistrySupport,
 	optimisticToRegistryCheck = false,
 ) {
-	const auth = token.startsWith("Basic ") ? token : "Bearer " + token;
+	const auth = prepareToken(token);
 
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
@@ -238,7 +245,7 @@ export function createRegistry(
 	async function uploadLayerContent(uploadUrl: string, layer: Layer, dir: string) {
 		logger.info(layer.digest);
 		const file = path.join(dir, getHash(layer.digest) + getLayerTypeFileEnding(layer));
-		await uploadContent(uploadUrl, file, layer, allowInsecure, auth);
+		await uploadContent(uploadUrl, file, layer, allowInsecure, auth, "application/octet-stream");
 	}
 
 	async function getUploadUrl(image: Image): Promise<string> {
@@ -251,7 +258,15 @@ export function createRegistry(
 				logger.debug("POST", `${url}`, res.statusCode);
 				if (res.statusCode == 202) {
 					const { location } = res.headers;
-					if (location) resolve(location);
+					if (location) {
+						if (location.startsWith("http")) {
+							resolve(location);
+						} else {
+							const regURL = URL.parse(registryBaseUrl);
+
+							resolve(`${regURL.protocol}//${regURL.hostname}${regURL.port ? ":" + regURL.port : ""}${location}`);
+						}
+					}
 					reject("Missing location for 202");
 				} else {
 					const data: string[] = [];
@@ -285,7 +300,6 @@ export function createRegistry(
 			const adequateManifest = pickManifest(availableManifests, preferredPlatform);
 			return dlManifest({ ...image, tag: adequateManifest.digest }, preferredPlatform, allowInsecure);
 		}
-
 		return res as Manifest;
 	}
 
@@ -381,7 +395,7 @@ export function createRegistry(
 		logger.info("Uploading config...");
 		const configUploadUrl = await getUploadUrl(image);
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
-		await uploadContent(configUploadUrl, configFile, manifest.config, allowInsecure, auth);
+		await uploadContent(configUploadUrl, configFile, manifest.config, allowInsecure, auth, "application/octet-stream");
 
 		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
@@ -391,6 +405,7 @@ export function createRegistry(
 			{ mediaType: manifest.mediaType, size: manifestSize },
 			allowInsecure,
 			auth,
+			manifest.mediaType,
 		);
 	}
 
