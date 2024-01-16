@@ -51,27 +51,29 @@ Options:
   --toImage <name:tag>           Required: Image name of target image - [path/]image:tag
   --folder <full path>           Required: Base folder of node application (contains package.json)
   --file <path>                  Optional: Name of configuration file (defaults to containerify.json if found on path)
+  --doCrossMount <true/false>    Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)
   --fromRegistry <registry url>  Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/
   --fromToken <token>            Optional: Authentication token for from registry
   --toRegistry <registry url>    Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/
-  --optimisticToRegistryCheck    Optional: Treat redirects as layer existing in remote registry. Potentially unsafe, but could save bandwidth.
+  --optimisticToRegistryCheck    Treat redirects as layer existing in remote registry. Potentially unsafe, but can save bandwidth.
   --toToken <token>              Optional: Authentication token for target registry
   --toTar <path>                 Optional: Export to tar file
+  --toDocker                     Optional: Export to local docker registry
   --registry <path>              Optional: Convenience argument for setting both from and to registry
   --platform <platform>          Optional: Preferred platform, e.g. linux/amd64 or arm64
   --token <path>                 Optional: Convenience argument for setting token for both from and to registry
-  --user <user>                  Optional: User account to run process in container - default: 1000
-  --workdir <directory>          Optional: Workdir where node app will be added and run from - default: /app
-  --entrypoint <entrypoint>      Optional: Entrypoint when starting container - default: npm start
+  --user <user>                  Optional: User account to run process in container - default: 1000 (empty for customContent)
+  --workdir <directory>          Optional: Workdir where node app will be added and run from - default: /app (empty for customContent)
+  --entrypoint <entrypoint>      Optional: Entrypoint when starting container - default: npm start (empty for customContent)
   --labels <labels>              Optional: Comma-separated list of key value pairs to use as labels
   --label <label>                Optional: Single label (name=value). This option can be used multiple times.
   --envs <envs>                  Optional: Comma-separated list of key value pairs to use av environment variables.
   --env <env>                    Optional: Single environment variable (name=value). This option can be used multiple times.
-  --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on
-                                 manifest/config
+  --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config
   --verbose                      Verbose logging
   --allowInsecureRegistries      Allow insecure registries (with self-signed/untrusted cert)
-  --customContent <dirs/files>   Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead
+  --customContent <dirs/files>   Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as
+                                 local-path:absolute-container-path if you want to place it in a specific location
   --extraContent <dirs/files>    Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc
   --layerOwner <gid:uid>         Optional: Set specific gid and uid on files in the added layers
   --buildFolder <path>           Optional: Use a specific build folder when creating the image
