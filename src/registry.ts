@@ -512,12 +512,13 @@ export async function processToken(
 ): Promise<string> {
 	const { hostname } = URL.parse(registryBaseUrl);
 	if (hostname?.endsWith("docker.io") && !token) {
+		const image = parseImage(imagePath);
 		const resp = await dlJson<{ token: string }>(
-			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${imagePath}:pull`,
+			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.path}:pull`,
 			{},
 			allowInsecure,
 		);
-		return resp.token;
+		return `Bearer ${resp.token}`;
 	}
 	if (!token) throw new Error("Need auth token to upload to " + registryBaseUrl);
 	if (token.startsWith("Basic ")) return token;
