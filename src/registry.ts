@@ -32,9 +32,14 @@ function request(
 	callback: (res: http.IncomingMessage) => void,
 ) {
 	if (allowInsecure == InsecureRegistrySupport.YES) options.rejectUnauthorized = false;
-	return (options.protocol == "https:" ? https : http).request(options, (res) => {
+	const req = (options.protocol == "https:" ? https : http).request(options, (res) => {
 		callback(res);
 	});
+	req.on("error", (e) => {
+		logger.error("ERROR: " + e, options.method, options.path);
+		throw e;
+	});
+	return req;
 }
 
 function isOk(httpStatus: number) {
@@ -56,6 +61,12 @@ function toError(res: http.IncomingMessage) {
 	return `Unexpected HTTP status ${res.statusCode} : ${res.statusMessage}`;
 }
 
+function waitForResponseEnd(res: http.IncomingMessage, cb: (data: Buffer) => void) {
+	const data: Buffer[] = [];
+	res.on("data", (d) => data.push(d));
+	res.on("end", () => cb(Buffer.concat(data)));
+}
+
 function dl(uri: string, headers: Headers, allowInsecure: InsecureRegistrySupport): Promise<string> {
 	logger.debug("dl", uri);
 	return new Promise((resolve, reject) => {
@@ -64,12 +75,7 @@ function dl(uri: string, headers: Headers, allowInsecure: InsecureRegistrySuppor
 			const { res } = result;
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
 			if (!isOk(res.statusCode ?? 0)) return reject(toError(res));
-			const data: string[] = [];
-			res
-				.on("data", (chunk) => data.push(chunk.toString()))
-				.on("end", () => {
-					resolve(data.reduce((a, b) => a.concat(b)));
-				});
+			waitForResponseEnd(res, (data) => resolve(data.toString()));
 		});
 	});
 }
@@ -168,21 +174,25 @@ function headOk(
 		options.method = "HEAD";
 		request(options, allowInsecure, (res) => {
 			logger.debug(`HEAD ${url}`, res.statusCode);
-			// Not found
-			if (res.statusCode == 404) return resolve(false);
-			// OK
-			if (res.statusCode == 200) return resolve(true);
-			// Redirected
-			if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
-				if (optimisticCheck) return resolve(true);
-				return resolve(headOk(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
-			}
-			// Unauthorized
-			// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
-			if (res.statusCode == 401) {
-				return resolve(false);
-			}
-			reject(toError(res));
+			waitForResponseEnd(res, (data) => {
+				// Not found
+				if (res.statusCode == 404) return resolve(false);
+				// OK
+				if (res.statusCode == 200) return resolve(true);
+				// Redirected
+				if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
+					if (optimisticCheck) return resolve(true);
+					return resolve(headOk(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
+				}
+				// Unauthorized
+				// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
+				if (res.statusCode == 401) {
+					return resolve(false);
+				}
+				// Other error
+				logger.error(`HEAD ${url}`, res.statusCode, res.statusMessage, data.toString());
+				reject(toError(res));
+			});
 		}).end();
 	});
 }
@@ -193,6 +203,7 @@ function uploadContent(
 	fileConfig: PartialManifestConfig,
 	allowInsecure: InsecureRegistrySupport,
 	auth: string,
+	contentType: string,
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
 		logger.debug("Uploading: ", file);
@@ -203,23 +214,27 @@ function uploadContent(
 		options.headers = {
 			authorization: auth,
 			"content-length": fileConfig.size,
-			"content-type": fileConfig.mediaType,
+			"content-type": contentType,
 		};
-		logger.debug("POST", url);
+		logger.debug(options.method, url);
 		const req = request(options, allowInsecure, (res) => {
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
 			if ([200, 201, 202, 203].includes(res.statusCode ?? 0)) {
 				resolve();
 			} else {
-				const data: string[] = [];
-				res.on("data", (d) => data.push(d.toString()));
-				res.on("end", () => {
-					reject(`Error uploading to ${uploadUrl}. Got ${res.statusCode} ${res.statusMessage}:\n${data.join("")}`);
+				waitForResponseEnd(res, (data) => {
+					reject(`Error uploading to ${uploadUrl}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`);
 				});
 			}
 		});
 		fss.createReadStream(file).pipe(req);
 	});
+}
+
+function prepareToken(token: string) {
+	if (token.startsWith("Basic ")) return token;
+	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
+	return "Bearer " + token;
 }
 
 export function createRegistry(
@@ -228,7 +243,7 @@ export function createRegistry(
 	allowInsecure: InsecureRegistrySupport,
 	optimisticToRegistryCheck = false,
 ) {
-	const auth = token.startsWith("Basic ") ? token : "Bearer " + token;
+	const auth = prepareToken(token);
 
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
@@ -238,7 +253,7 @@ export function createRegistry(
 	async function uploadLayerContent(uploadUrl: string, layer: Layer, dir: string) {
 		logger.info(layer.digest);
 		const file = path.join(dir, getHash(layer.digest) + getLayerTypeFileEnding(layer));
-		await uploadContent(uploadUrl, file, layer, allowInsecure, auth);
+		await uploadContent(uploadUrl, file, layer, allowInsecure, auth, "application/octet-stream");
 	}
 
 	async function getUploadUrl(image: Image): Promise<string> {
@@ -251,17 +266,22 @@ export function createRegistry(
 				logger.debug("POST", `${url}`, res.statusCode);
 				if (res.statusCode == 202) {
 					const { location } = res.headers;
-					if (location) resolve(location);
+					if (location) {
+						if (location.startsWith("http")) {
+							resolve(location);
+						} else {
+							const regURL = URL.parse(registryBaseUrl);
+
+							resolve(`${regURL.protocol}//${regURL.hostname}${regURL.port ? ":" + regURL.port : ""}${location}`);
+						}
+					}
 					reject("Missing location for 202");
 				} else {
-					const data: string[] = [];
-					res
-						.on("data", (c) => data.push(c.toString()))
-						.on("end", () => {
-							reject(
-								`Error getting upload URL from ${url}. Got ${res.statusCode} ${res.statusMessage}:\n${data.join("")}`,
-							);
-						});
+					waitForResponseEnd(res, (data) => {
+						reject(
+							`Error getting upload URL from ${url}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`,
+						);
+					});
 				}
 			}).end();
 		});
@@ -285,7 +305,6 @@ export function createRegistry(
 			const adequateManifest = pickManifest(availableManifests, preferredPlatform);
 			return dlManifest({ ...image, tag: adequateManifest.digest }, preferredPlatform, allowInsecure);
 		}
-
 		return res as Manifest;
 	}
 
@@ -357,7 +376,6 @@ export function createRegistry(
 		const image = parseImage(imageStr);
 		const manifestFile = path.join(folder, "manifest.json");
 		const manifest = (await fse.readJson(manifestFile)) as Manifest;
-
 		logger.info("Checking layer status...");
 		const layerStatus = await Promise.all(
 			manifest.layers.map(async (l) => {
@@ -369,7 +387,6 @@ export function createRegistry(
 			"Needs upload:",
 			layersForUpload.map((l) => l.layer.digest),
 		);
-
 		logger.info("Uploading layers...");
 		await Promise.all(
 			layersForUpload.map(async (l) => {
@@ -381,7 +398,7 @@ export function createRegistry(
 		logger.info("Uploading config...");
 		const configUploadUrl = await getUploadUrl(image);
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
-		await uploadContent(configUploadUrl, configFile, manifest.config, allowInsecure, auth);
+		await uploadContent(configUploadUrl, configFile, manifest.config, allowInsecure, auth, "application/octet-stream");
 
 		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
@@ -391,6 +408,7 @@ export function createRegistry(
 			{ mediaType: manifest.mediaType, size: manifestSize },
 			allowInsecure,
 			auth,
+			manifest.mediaType,
 		);
 	}
 
