@@ -66,6 +66,8 @@ export type HistoryLine = {
 };
 
 export type Options = {
+	from?: string;
+	to?: string;
 	fromImage: string;
 	toImage: string;
 	folder: string;
