@@ -7,4 +7,4 @@ if [[ -z "$GITHUB_TOKEN" ]]; then
 fi
 
 printf "* Running containerify to pull from and push result to gchr.io ...\n"
-../../lib/cli.js --verbose --doCrossMount true --from ghcr.io/docker-mirror/node:alpine --to ghcr.io/eoftedal/containerify-integrationtest:latest --folder . --customContent customContent --setTimeStamp "2024-01-15T20:00:00.000Z" --token "$GITHUB_TOKEN"
+../../lib/cli.js --verbose --doCrossMount --from ghcr.io/docker-mirror/node:alpine --to ghcr.io/eoftedal/containerify-integrationtest:latest --folder . --customContent customContent --setTimeStamp "2024-01-15T20:00:00.000Z" --token "$GITHUB_TOKEN"

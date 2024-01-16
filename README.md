@@ -53,7 +53,7 @@ Options:
   --toImage <name:tag>           Required: Image name of target image - [path/]image:tag
   --folder <full path>           Required: Base folder of node application (contains package.json)
   --file <path>                  Optional: Name of configuration file (defaults to containerify.json if found on path)
-  --doCrossMount <true/false>    Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)
+  --doCrossMount                 Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)
   --fromRegistry <registry url>  Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/
   --fromToken <token>            Optional: Authentication token for from registry
   --toRegistry <registry url>    Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/
