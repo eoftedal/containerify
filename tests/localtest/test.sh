@@ -47,9 +47,13 @@ docker pull node:alpine  &>  /dev/null
 
 printf "* Pushing base image to local containerify test registry...\n"
 docker tag node:alpine localhost:5443/node > /dev/null
+echo -n $TESTPASSWORD | docker login -u $TESTUSER --password-stdin localhost:5443
 docker push localhost:5443/node > /dev/null
 
 printf "* Running containerify to pull from and push result to the local containerify test registry...\n"
+cd ../integration/app
+npm install
+cd ../../localtest
 ../../lib/cli.js --fromImage node --doCrossMount true --registry https://localhost:5443/v2/ --toImage containerify-integration-test:localtest --folder ../integration/app --setTimeStamp "2023-03-07T12:53:10.471Z" --allowInsecureRegistries --token "Basic $BASICAUTH"
 
 

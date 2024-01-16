@@ -107,3 +107,14 @@ export enum InsecureRegistrySupport {
 	NO,
 	YES,
 }
+export type Registry = {
+	download: (imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) => Promise<Manifest>;
+	upload: (
+		imageStr: string,
+		folder: string,
+		doCrossMount: boolean,
+		originalManifest: Manifest,
+		originalRepository: string,
+	) => Promise<void>;
+	registryBaseUrl: string;
+};

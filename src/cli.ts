@@ -189,8 +189,6 @@ exitWithErrorIf(!!options.registry && !!options.from, "Do not set both --registr
 exitWithErrorIf(!!options.registry && !!options.toRegistry, "Do not set both --registry and --toRegistry");
 exitWithErrorIf(!!options.to && !!options.toRegistry, "Do not set both --toRegistry and --to");
 exitWithErrorIf(!!options.registry && !!options.to, "Do not set both --registry and --to");
-console.log(options);
-console.log("MOADHAO", options.from, options.to);
 if (options.from) {
 	const { registry, image } = parseFullImageUrl(options.from);
 	options.fromRegistry = registry;

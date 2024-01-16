@@ -18,6 +18,7 @@ import {
 	Manifest,
 	PartialManifestConfig,
 	Platform,
+	Registry,
 } from "./types";
 import { DockerV2, OCI } from "./MIMETypes";
 import { getLayerTypeFileEnding } from "./utils";
@@ -231,18 +232,6 @@ function uploadContent(
 	});
 }
 
-type Registry = {
-	download: (imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) => Promise<Manifest>;
-	upload: (
-		imageStr: string,
-		folder: string,
-		doCrossMount: boolean,
-		originalManifest: Manifest,
-		originalRepository: string,
-	) => Promise<void>;
-	registryBaseUrl: string;
-};
-
 type Mount = { mount: string; from: string };
 type UploadURL = { uploadUrl: string };
 type UploadURLorMounted = UploadURL | { mountSuccess: true };
@@ -268,10 +257,10 @@ export function createRegistry(
 
 	async function getUploadUrl(
 		image: Image,
-		mountParamters: Mount | undefined = undefined,
+		mountParameters: Mount | undefined = undefined,
 	): Promise<UploadURLorMounted> {
 		return new Promise((resolve, reject) => {
-			const parameters = new URLSearchParams(mountParamters);
+			const parameters = new URLSearchParams(mountParameters);
 			const url = `${registryBaseUrl}${image.path}/blobs/uploads/${parameters.size > 0 ? "?" + parameters : ""}`;
 			const options: https.RequestOptions = URL.parse(url);
 			options.method = "POST";
@@ -291,11 +280,11 @@ export function createRegistry(
 						}
 					}
 					reject("Missing location for 202");
-				} else if (mountParamters && res.statusCode == 201) {
+				} else if (mountParameters && res.statusCode == 201) {
 					const returnedDigest = res.headers["docker-content-digest"];
-					if (returnedDigest && returnedDigest != mountParamters.mount) {
+					if (returnedDigest && returnedDigest != mountParameters.mount) {
 						reject(
-							`ERROR: Layer mounted with wrong digest: Expected ${mountParamters.mount} but got ${returnedDigest}`,
+							`ERROR: Layer mounted with wrong digest: Expected ${mountParameters.mount} but got ${returnedDigest}`,
 						);
 					}
 					resolve({ mountSuccess: true });
