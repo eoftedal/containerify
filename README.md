@@ -30,6 +30,17 @@ containerify --fromImage nginx:alpine --folder . --toImage frontend:latest --cus
 
 This will take the `nginx:alpine` image, and copy the files from `./dist/` into `/usr/share/nginx/html`.
 
+### Using with Github Container Registry (ghcr.io)
+
+1. Create a token from https://github.com/settings/tokens/new?scopes=write:packages or use GITHUB_TOKEN from Github Actions
+2. Example: `containerify --registry https://ghcr.io/v2/ --token "$GITHUB_TOKEN" --fromImage docker-mirror/node:alpine --toImage <some image name>:<some tag> --folder . `
+
+### Using with AWS ECR
+
+1. Create the repository in AWS from the console or through using the CLI
+2. Create token using `aws ecr get-authorization-token --output text --query 'authorizationData[].authorizationToken'`
+3. Example: `containerify  --toToken "Basic $TOKEN" --toRegistry https://<AWS ACCOUNT ID>.dkr.ecr.<AWS region for repository>.amazonaws.com/v2/ --fromImage node:alpine --toImage <name of repository>:<some tag> --folder .`
+
 ### Command line options
 
 ```

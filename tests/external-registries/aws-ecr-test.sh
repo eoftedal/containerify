@@ -9,4 +9,4 @@ REGION=$(aws configure get region)
 echo $TOKEN
 
 printf "* Running containerify to pull from and push result to AWS ECR ...\n"
-../../lib/cli.js --verbose --fromImage node:alpine --toRegistry https://$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/v2/ --toImage containerify-integrationtest:latest --folder . --customContent customContent --setTimeStamp "2024-01-15T20:00:00.000Z" --toToken "Basic $TOKEN" --layerCacheFolder tmp/layercache
+../../lib/cli.js --verbose --fromImage node:alpine --toRegistry https://$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/v2/ --toImage containerify-test:latest --folder . --customContent customContent --setTimeStamp "2024-01-15T20:00:00.000Z" --toToken "Basic $TOKEN"
