@@ -73,6 +73,7 @@ export type Options = {
 	fromRegistry?: string;
 	fromToken?: string;
 	toRegistry?: string;
+	doCrossMount: boolean;
 	optimisticToRegistryCheck?: boolean;
 	toToken?: string;
 	toTar?: string;
