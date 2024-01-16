@@ -22,6 +22,8 @@ const possibleArgs = {
 	"--toImage <name:tag>": "Required: Image name of target image - [path/]image:tag",
 	"--folder <full path>": "Required: Base folder of node application (contains package.json)",
 	"--file <path>": "Optional: Name of configuration file (defaults to containerify.json if found on path)",
+	"--doCrossMount <true/false>":
+		"Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)",
 	"--fromRegistry <registry url>":
 		"Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/",
 	"--fromToken <token>": "Optional: Authentication token for from registry",
@@ -92,6 +94,7 @@ const defaultOptions = {
 	workdir: "/app",
 	user: "1000",
 	entrypoint: "npm start",
+	doCrossMount: false,
 };
 
 if (cliOptions.file && !fs.existsSync(cliOptions.file)) {
@@ -182,6 +185,11 @@ exitWithErrorIf(!!options.registry && !!options.toRegistry, "Do not set both --r
 exitWithErrorIf(!!options.token && !!options.fromToken, "Do not set both --token and --fromToken");
 exitWithErrorIf(!!options.token && !!options.toToken, "Do not set both --token and --toToken");
 
+exitWithErrorIf(
+	!!options.doCrossMount && options.toRegistry != options.fromRegistry,
+	"Cross mounting only works if fromRegistry and toRegistry are the same",
+);
+
 if (options.setTimeStamp) {
 	try {
 		options.setTimeStamp = new Date(options.setTimeStamp).toISOString();
@@ -259,7 +267,7 @@ async function run(options: Options) {
 	const fromRegistry = options.fromRegistry
 		? createRegistry(options.fromRegistry, options.fromToken ?? "", allowInsecure)
 		: createDockerRegistry(allowInsecure, options.fromToken);
-	await fromRegistry.download(
+	const originalManifest = await fromRegistry.download(
 		options.fromImage,
 		fromdir,
 		getPreferredPlatform(options.platform),
@@ -286,7 +294,7 @@ async function run(options: Options) {
 			allowInsecure,
 			options.optimisticToRegistryCheck,
 		);
-		await toRegistry.upload(options.toImage, todir);
+		await toRegistry.upload(options.toImage, todir, options.doCrossMount, originalManifest, options.fromImage);
 	}
 	logger.debug("Deleting " + tmpdir + " ...");
 	await fse.remove(tmpdir);

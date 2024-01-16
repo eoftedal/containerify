@@ -237,12 +237,28 @@ function prepareToken(token: string) {
 	return "Bearer " + token;
 }
 
+type Registry = {
+	download: (imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) => Promise<Manifest>;
+	upload: (
+		imageStr: string,
+		folder: string,
+		doCrossMount: boolean,
+		originalManifest: Manifest,
+		originalRepository: string,
+	) => Promise<void>;
+	registryBaseUrl: string;
+};
+
+type Mount = { mount: string; from: string };
+type UploadURL = { uploadUrl: string };
+type UploadURLorMounted = UploadURL | { mountSuccess: true };
+
 export function createRegistry(
 	registryBaseUrl: string,
 	token: string,
 	allowInsecure: InsecureRegistrySupport,
 	optimisticToRegistryCheck = false,
-) {
+): Registry {
 	const auth = prepareToken(token);
 
 	async function exists(image: Image, layer: Layer) {
@@ -256,9 +272,13 @@ export function createRegistry(
 		await uploadContent(uploadUrl, file, layer, allowInsecure, auth, "application/octet-stream");
 	}
 
-	async function getUploadUrl(image: Image): Promise<string> {
+	async function getUploadUrl(
+		image: Image,
+		mountParamters: Mount | undefined = undefined,
+	): Promise<UploadURLorMounted> {
 		return new Promise((resolve, reject) => {
-			const url = `${registryBaseUrl}${image.path}/blobs/uploads/`;
+			const parameters = new URLSearchParams(mountParamters);
+			const url = `${registryBaseUrl}${image.path}/blobs/uploads/${parameters.size > 0 ? "?" + parameters : ""}`;
 			const options: https.RequestOptions = URL.parse(url);
 			options.method = "POST";
 			options.headers = { authorization: auth };
@@ -268,14 +288,23 @@ export function createRegistry(
 					const { location } = res.headers;
 					if (location) {
 						if (location.startsWith("http")) {
-							resolve(location);
+							resolve({ uploadUrl: location });
 						} else {
 							const regURL = URL.parse(registryBaseUrl);
-
-							resolve(`${regURL.protocol}//${regURL.hostname}${regURL.port ? ":" + regURL.port : ""}${location}`);
+							resolve({
+								uploadUrl: `${regURL.protocol}//${regURL.hostname}${regURL.port ? ":" + regURL.port : ""}${location}`,
+							});
 						}
 					}
 					reject("Missing location for 202");
+				} else if (mountParamters && res.statusCode == 201) {
+					const returnedDigest = res.headers["docker-content-digest"];
+					if (returnedDigest && returnedDigest != mountParamters.mount) {
+						reject(
+							`ERROR: Layer mounted with wrong digest: Expected ${mountParamters.mount} but got ${returnedDigest}`,
+						);
+					}
+					resolve({ mountSuccess: true });
 				} else {
 					waitForResponseEnd(res, (data) => {
 						reject(
@@ -372,7 +401,13 @@ export function createRegistry(
 		return file;
 	}
 
-	async function upload(imageStr: string, folder: string) {
+	async function upload(
+		imageStr: string,
+		folder: string,
+		doCrossMount: boolean,
+		originalManifest: Manifest,
+		originalRepository: string,
+	) {
 		const image = parseImage(imageStr);
 		const manifestFile = path.join(folder, "manifest.json");
 		const manifest = (await fse.readJson(manifestFile)) as Manifest;
@@ -390,15 +425,33 @@ export function createRegistry(
 		logger.info("Uploading layers...");
 		await Promise.all(
 			layersForUpload.map(async (l) => {
-				const url = await getUploadUrl(image);
-				await uploadLayerContent(url, l.layer, folder);
+				if (doCrossMount && originalManifest.layers.find((x) => x.digest == l.layer.digest)) {
+					const mount = await getUploadUrl(image, { mount: l.layer.digest, from: originalRepository });
+					if ("mountSuccess" in mount) {
+						logger.info(`Cross mounted layer ${l.layer.digest} from '${originalRepository}'`);
+						return;
+					}
+					await uploadLayerContent(mount.uploadUrl, l.layer, folder);
+				} else {
+					const url = await getUploadUrl(image);
+					if ("mountSuccess" in url) throw new Error("Mounting not supported for this upload");
+					await uploadLayerContent(url.uploadUrl, l.layer, folder);
+				}
 			}),
 		);
 
 		logger.info("Uploading config...");
 		const configUploadUrl = await getUploadUrl(image);
+		if ("mountSuccess" in configUploadUrl) throw new Error("Mounting not supported for config upload");
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
-		await uploadContent(configUploadUrl, configFile, manifest.config, allowInsecure, auth, "application/octet-stream");
+		await uploadContent(
+			configUploadUrl.uploadUrl,
+			configFile,
+			manifest.config,
+			allowInsecure,
+			auth,
+			"application/octet-stream",
+		);
 
 		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
@@ -412,7 +465,12 @@ export function createRegistry(
 		);
 	}
 
-	async function download(imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) {
+	async function download(
+		imageStr: string,
+		folder: string,
+		preferredPlatform: Platform,
+		cacheFolder?: string,
+	): Promise<Manifest> {
 		const image = parseImage(imageStr);
 
 		logger.info("Downloading manifest...");
@@ -437,15 +495,17 @@ export function createRegistry(
 		await Promise.all(manifest.layers.map((layer) => dlLayer(image, layer, folder, allowInsecure, cacheFolder)));
 
 		logger.info("Image downloaded.");
+		return manifest;
 	}
 
 	return {
 		download: download,
 		upload: upload,
+		registryBaseUrl,
 	};
 }
 
-export function createDockerRegistry(allowInsecure: InsecureRegistrySupport, auth?: string) {
+export function createDockerRegistry(allowInsecure: InsecureRegistrySupport, auth?: string): Registry {
 	const registryBaseUrl = "https://registry-1.docker.io/v2/";
 
 	async function getToken(image: Image) {
@@ -457,19 +517,37 @@ export function createDockerRegistry(allowInsecure: InsecureRegistrySupport, aut
 		return resp.token;
 	}
 
-	async function download(imageStr: string, folder: string, platform: Platform, cacheFolder?: string) {
+	async function download(
+		imageStr: string,
+		folder: string,
+		platform: Platform,
+		cacheFolder?: string,
+	): Promise<Manifest> {
 		const image = parseImage(imageStr);
 		if (!auth) auth = await getToken(image);
-		await createRegistry(registryBaseUrl, auth, allowInsecure).download(imageStr, folder, platform, cacheFolder);
+		return await createRegistry(registryBaseUrl, auth, allowInsecure).download(imageStr, folder, platform, cacheFolder);
 	}
 
-	async function upload(imageStr: string, folder: string) {
+	async function upload(
+		imageStr: string,
+		folder: string,
+		doCrossMount: boolean,
+		originalManifest: Manifest,
+		originalRepository: string,
+	) {
 		if (!auth) throw new Error("Need auth token to upload to Docker");
-		await createRegistry(registryBaseUrl, auth, allowInsecure).upload(imageStr, folder);
+		await createRegistry(registryBaseUrl, auth, allowInsecure).upload(
+			imageStr,
+			folder,
+			doCrossMount,
+			originalManifest,
+			originalRepository,
+		);
 	}
 
 	return {
 		download: download,
 		upload: upload,
+		registryBaseUrl,
 	};
 }
