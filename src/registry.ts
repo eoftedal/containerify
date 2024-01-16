@@ -32,9 +32,14 @@ function request(
 	callback: (res: http.IncomingMessage) => void,
 ) {
 	if (allowInsecure == InsecureRegistrySupport.YES) options.rejectUnauthorized = false;
-	return (options.protocol == "https:" ? https : http).request(options, (res) => {
+	const req = (options.protocol == "https:" ? https : http).request(options, (res) => {
 		callback(res);
 	});
+	req.on("error", (e) => {
+		logger.error("ERROR: " + e, options.method, options.path);
+		throw e;
+	});
+	return req;
 }
 
 function isOk(httpStatus: number) {
@@ -56,6 +61,12 @@ function toError(res: http.IncomingMessage) {
 	return `Unexpected HTTP status ${res.statusCode} : ${res.statusMessage}`;
 }
 
+function waitForResponseEnd(res: http.IncomingMessage, cb: (data: Buffer) => void) {
+	const data: Buffer[] = [];
+	res.on("data", (d) => data.push(d));
+	res.on("end", () => cb(Buffer.concat(data)));
+}
+
 function dl(uri: string, headers: Headers, allowInsecure: InsecureRegistrySupport): Promise<string> {
 	logger.debug("dl", uri);
 	return new Promise((resolve, reject) => {
@@ -64,12 +75,7 @@ function dl(uri: string, headers: Headers, allowInsecure: InsecureRegistrySuppor
 			const { res } = result;
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
 			if (!isOk(res.statusCode ?? 0)) return reject(toError(res));
-			const data: string[] = [];
-			res
-				.on("data", (chunk) => data.push(chunk.toString()))
-				.on("end", () => {
-					resolve(data.reduce((a, b) => a.concat(b)));
-				});
+			waitForResponseEnd(res, (data) => resolve(data.toString()));
 		});
 	});
 }
@@ -168,21 +174,25 @@ function headOk(
 		options.method = "HEAD";
 		request(options, allowInsecure, (res) => {
 			logger.debug(`HEAD ${url}`, res.statusCode);
-			// Not found
-			if (res.statusCode == 404) return resolve(false);
-			// OK
-			if (res.statusCode == 200) return resolve(true);
-			// Redirected
-			if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
-				if (optimisticCheck) return resolve(true);
-				return resolve(headOk(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
-			}
-			// Unauthorized
-			// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
-			if (res.statusCode == 401) {
-				return resolve(false);
-			}
-			reject(toError(res));
+			waitForResponseEnd(res, (data) => {
+				// Not found
+				if (res.statusCode == 404) return resolve(false);
+				// OK
+				if (res.statusCode == 200) return resolve(true);
+				// Redirected
+				if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
+					if (optimisticCheck) return resolve(true);
+					return resolve(headOk(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
+				}
+				// Unauthorized
+				// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
+				if (res.statusCode == 401) {
+					return resolve(false);
+				}
+				// Other error
+				logger.error(`HEAD ${url}`, res.statusCode, res.statusMessage, data.toString());
+				reject(toError(res));
+			});
 		}).end();
 	});
 }
@@ -206,16 +216,14 @@ function uploadContent(
 			"content-length": fileConfig.size,
 			"content-type": contentType,
 		};
-		logger.debug("POST", url);
+		logger.debug(options.method, url);
 		const req = request(options, allowInsecure, (res) => {
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
 			if ([200, 201, 202, 203].includes(res.statusCode ?? 0)) {
 				resolve();
 			} else {
-				const data: string[] = [];
-				res.on("data", (d) => data.push(d.toString()));
-				res.on("end", () => {
-					reject(`Error uploading to ${uploadUrl}. Got ${res.statusCode} ${res.statusMessage}:\n${data.join("")}`);
+				waitForResponseEnd(res, (data) => {
+					reject(`Error uploading to ${uploadUrl}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`);
 				});
 			}
 		});
@@ -269,14 +277,11 @@ export function createRegistry(
 					}
 					reject("Missing location for 202");
 				} else {
-					const data: string[] = [];
-					res
-						.on("data", (c) => data.push(c.toString()))
-						.on("end", () => {
-							reject(
-								`Error getting upload URL from ${url}. Got ${res.statusCode} ${res.statusMessage}:\n${data.join("")}`,
-							);
-						});
+					waitForResponseEnd(res, (data) => {
+						reject(
+							`Error getting upload URL from ${url}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`,
+						);
+					});
 				}
 			}).end();
 		});
@@ -371,7 +376,6 @@ export function createRegistry(
 		const image = parseImage(imageStr);
 		const manifestFile = path.join(folder, "manifest.json");
 		const manifest = (await fse.readJson(manifestFile)) as Manifest;
-
 		logger.info("Checking layer status...");
 		const layerStatus = await Promise.all(
 			manifest.layers.map(async (l) => {
@@ -383,7 +387,6 @@ export function createRegistry(
 			"Needs upload:",
 			layersForUpload.map((l) => l.layer.digest),
 		);
-
 		logger.info("Uploading layers...");
 		await Promise.all(
 			layersForUpload.map(async (l) => {
