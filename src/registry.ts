@@ -511,7 +511,7 @@ export async function processToken(
 	token?: string,
 ): Promise<string> {
 	const { hostname } = URL.parse(registryBaseUrl);
-	if (hostname?.endsWith("docker.io") && !token) {
+	if (hostname?.endsWith(".docker.io") && !token) {
 		const image = parseImage(imagePath);
 		const resp = await dlJson<{ token: string }>(
 			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.path}:pull`,
