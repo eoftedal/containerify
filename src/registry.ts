@@ -18,6 +18,7 @@ import {
 	Manifest,
 	PartialManifestConfig,
 	Platform,
+	Registry,
 } from "./types";
 import { DockerV2, OCI } from "./MIMETypes";
 import { getLayerTypeFileEnding } from "./utils";
@@ -231,24 +232,6 @@ function uploadContent(
 	});
 }
 
-function prepareToken(token: string) {
-	if (token.startsWith("Basic ")) return token;
-	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
-	return "Bearer " + token;
-}
-
-type Registry = {
-	download: (imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) => Promise<Manifest>;
-	upload: (
-		imageStr: string,
-		folder: string,
-		doCrossMount: boolean,
-		originalManifest: Manifest,
-		originalRepository: string,
-	) => Promise<void>;
-	registryBaseUrl: string;
-};
-
 type Mount = { mount: string; from: string };
 type UploadURL = { uploadUrl: string };
 type UploadURLorMounted = UploadURL | { mountSuccess: true };
@@ -259,7 +242,7 @@ export function createRegistry(
 	allowInsecure: InsecureRegistrySupport,
 	optimisticToRegistryCheck = false,
 ): Registry {
-	const auth = prepareToken(token);
+	const auth = token;
 
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
@@ -274,10 +257,10 @@ export function createRegistry(
 
 	async function getUploadUrl(
 		image: Image,
-		mountParamters: Mount | undefined = undefined,
+		mountParameters: Mount | undefined = undefined,
 	): Promise<UploadURLorMounted> {
 		return new Promise((resolve, reject) => {
-			const parameters = new URLSearchParams(mountParamters);
+			const parameters = new URLSearchParams(mountParameters);
 			const url = `${registryBaseUrl}${image.path}/blobs/uploads/${parameters.size > 0 ? "?" + parameters : ""}`;
 			const options: https.RequestOptions = URL.parse(url);
 			options.method = "POST";
@@ -297,11 +280,11 @@ export function createRegistry(
 						}
 					}
 					reject("Missing location for 202");
-				} else if (mountParamters && res.statusCode == 201) {
+				} else if (mountParameters && res.statusCode == 201) {
 					const returnedDigest = res.headers["docker-content-digest"];
-					if (returnedDigest && returnedDigest != mountParamters.mount) {
+					if (returnedDigest && returnedDigest != mountParameters.mount) {
 						reject(
-							`ERROR: Layer mounted with wrong digest: Expected ${mountParamters.mount} but got ${returnedDigest}`,
+							`ERROR: Layer mounted with wrong digest: Expected ${mountParameters.mount} but got ${returnedDigest}`,
 						);
 					}
 					resolve({ mountSuccess: true });
@@ -505,49 +488,40 @@ export function createRegistry(
 	};
 }
 
-export function createDockerRegistry(allowInsecure: InsecureRegistrySupport, auth?: string): Registry {
-	const registryBaseUrl = "https://registry-1.docker.io/v2/";
+export const DEFAULT_DOCKER_REGISTRY = "https://registry-1.docker.io/v2/";
 
-	async function getToken(image: Image) {
+export function parseFullImageUrl(imageStr: string): { registry: string; image: string } {
+	const [registry, ...rest] = imageStr.split("/");
+	if (registry == "docker.io") {
+		return {
+			registry: DEFAULT_DOCKER_REGISTRY,
+			image: rest.join("/"),
+		};
+	}
+	return {
+		registry: `https://${registry}/v2/`,
+		image: rest.join("/"),
+	};
+}
+
+export async function processToken(
+	registryBaseUrl: string,
+	allowInsecure: InsecureRegistrySupport,
+	imagePath: string,
+	token?: string,
+): Promise<string> {
+	const { hostname } = URL.parse(registryBaseUrl);
+	const image = parseImage(imagePath);
+	if (hostname?.endsWith(".docker.io") && !token) {
 		const resp = await dlJson<{ token: string }>(
 			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.path}:pull`,
 			{},
 			allowInsecure,
 		);
-		return resp.token;
+		return `Bearer ${resp.token}`;
 	}
-
-	async function download(
-		imageStr: string,
-		folder: string,
-		platform: Platform,
-		cacheFolder?: string,
-	): Promise<Manifest> {
-		const image = parseImage(imageStr);
-		if (!auth) auth = await getToken(image);
-		return await createRegistry(registryBaseUrl, auth, allowInsecure).download(imageStr, folder, platform, cacheFolder);
-	}
-
-	async function upload(
-		imageStr: string,
-		folder: string,
-		doCrossMount: boolean,
-		originalManifest: Manifest,
-		originalRepository: string,
-	) {
-		if (!auth) throw new Error("Need auth token to upload to Docker");
-		await createRegistry(registryBaseUrl, auth, allowInsecure).upload(
-			imageStr,
-			folder,
-			doCrossMount,
-			originalManifest,
-			originalRepository,
-		);
-	}
-
-	return {
-		download: download,
-		upload: upload,
-		registryBaseUrl,
-	};
+	if (!token) throw new Error("Need auth token to upload to " + registryBaseUrl);
+	if (token.startsWith("Basic ")) return token;
+	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
+	return "Bearer " + token;
 }

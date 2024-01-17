@@ -6,7 +6,7 @@ import * as path from "path";
 import * as fse from "fs-extra";
 import * as fs from "fs";
 
-import { createRegistry, createDockerRegistry } from "./registry";
+import { DEFAULT_DOCKER_REGISTRY, createRegistry, processToken, parseFullImageUrl } from "./registry";
 import appLayerCreator from "./appLayerCreator";
 import dockerExporter from "./dockerExporter";
 import tarExporter from "./tarExporter";
@@ -18,12 +18,14 @@ import { ensureEmptyDir } from "./fileutil";
 import { VERSION } from "./version";
 
 const possibleArgs = {
+	"--from <registry/image:tag>": "Optional: Shorthand to specify fromRegistry and fromImage in one argument",
+	"--to <registry/image:tag>": "Optional: Shorthand to specify toRegistry and toImage in one argument",
 	"--fromImage <name:tag>": "Required: Image name of base image - [path/]image:tag",
 	"--toImage <name:tag>": "Required: Image name of target image - [path/]image:tag",
 	"--folder <full path>": "Required: Base folder of node application (contains package.json)",
 	"--file <path>": "Optional: Name of configuration file (defaults to containerify.json if found on path)",
-	"--doCrossMount <true/false>":
-		"Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)",
+	"--doCrossMount":
+		"Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)",
 	"--fromRegistry <registry url>":
 		"Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/",
 	"--fromToken <token>": "Optional: Authentication token for from registry",
@@ -181,13 +183,29 @@ function exitWithErrorIf(check: boolean, error: string) {
 if (options.verbose) logger.enableDebug();
 
 exitWithErrorIf(!!options.registry && !!options.fromRegistry, "Do not set both --registry and --fromRegistry");
+exitWithErrorIf(!!options.from && !!options.fromRegistry, "Do not set both --from and --fromRegistry");
+exitWithErrorIf(!!options.registry && !!options.from, "Do not set both --registry and --from");
+
 exitWithErrorIf(!!options.registry && !!options.toRegistry, "Do not set both --registry and --toRegistry");
+exitWithErrorIf(!!options.to && !!options.toRegistry, "Do not set both --toRegistry and --to");
+exitWithErrorIf(!!options.registry && !!options.to, "Do not set both --registry and --to");
+if (options.from) {
+	const { registry, image } = parseFullImageUrl(options.from);
+	options.fromRegistry = registry;
+	options.fromImage = image;
+}
+if (options.to) {
+	const { registry, image } = parseFullImageUrl(options.to);
+	options.toRegistry = registry;
+	options.toImage = image;
+}
+
 exitWithErrorIf(!!options.token && !!options.fromToken, "Do not set both --token and --fromToken");
 exitWithErrorIf(!!options.token && !!options.toToken, "Do not set both --token and --toToken");
 
 exitWithErrorIf(
 	!!options.doCrossMount && options.toRegistry != options.fromRegistry,
-	"Cross mounting only works if fromRegistry and toRegistry are the same",
+	`Cross mounting only works if fromRegistry and toRegistry are the same (${options.fromRegistry} != ${options.toRegistry})`,
 );
 
 if (options.setTimeStamp) {
@@ -263,10 +281,12 @@ async function run(options: Options) {
 	const fromdir = await ensureEmptyDir(path.join(tmpdir, "from"));
 	const todir = await ensureEmptyDir(path.join(tmpdir, "to"));
 	const allowInsecure = options.allowInsecureRegistries ? InsecureRegistrySupport.YES : InsecureRegistrySupport.NO;
-
-	const fromRegistry = options.fromRegistry
-		? createRegistry(options.fromRegistry, options.fromToken ?? "", allowInsecure)
-		: createDockerRegistry(allowInsecure, options.fromToken);
+	const fromRegistryUrl = options.fromRegistry ?? DEFAULT_DOCKER_REGISTRY;
+	const fromRegistry = createRegistry(
+		fromRegistryUrl,
+		await processToken(fromRegistryUrl, allowInsecure, options.fromImage, options.fromToken),
+		allowInsecure,
+	);
 	const originalManifest = await fromRegistry.download(
 		options.fromImage,
 		fromdir,
@@ -290,7 +310,7 @@ async function run(options: Options) {
 	if (options.toRegistry) {
 		const toRegistry = createRegistry(
 			options.toRegistry,
-			options.toToken ?? "",
+			await processToken(options.toRegistry, allowInsecure, options.toImage, options.toToken),
 			allowInsecure,
 			options.optimisticToRegistryCheck,
 		);
