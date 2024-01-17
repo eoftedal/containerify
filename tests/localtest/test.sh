@@ -2,9 +2,11 @@
 
 set -e
 
+export DOCKER_CONFIG=tmp
 TESTUSER=testuser
 TESTPASSWORD=testpassword
 BASICAUTH=$(echo -n "$TESTUSER:$TESTPASSWORD" | base64)
+LOCAL_REGISTRY=127.0.0.1
 
 rm -rf tmp
 mkdir -p tmp/certs
@@ -46,25 +48,25 @@ printf "* Pulling node:alpine as base image...\n"
 docker pull node:alpine  &>  /dev/null
 
 printf "* Pushing base image to local containerify test registry...\n"
-docker tag node:alpine localhost:5443/node > /dev/null
-echo -n $TESTPASSWORD | docker login -u $TESTUSER --password-stdin localhost:5443
-docker push localhost:5443/node > /dev/null
+docker tag node:alpine ${LOCAL_REGISTRY}:5443/node > /dev/null
+echo -n $TESTPASSWORD | docker login -u $TESTUSER --password-stdin ${LOCAL_REGISTRY}:5443
+docker push ${LOCAL_REGISTRY}:5443/node > /dev/null
 
 printf "* Running containerify to pull from and push result to the local containerify test registry...\n"
 cd ../integration/app
 npm install
 cd ../../localtest
-../../lib/cli.js --fromImage node --doCrossMount --registry https://localhost:5443/v2/ --toImage containerify-integration-test:localtest --folder ../integration/app --setTimeStamp "2023-03-07T12:53:10.471Z" --allowInsecureRegistries --token "Basic $BASICAUTH"
+../../lib/cli.js --fromImage node --doCrossMount --registry https://${LOCAL_REGISTRY}:5443/v2/ --toImage containerify-integration-test:localtest --folder ../integration/app --setTimeStamp "2023-03-07T12:53:10.471Z" --allowInsecureRegistries --token "Basic $BASICAUTH"
 
 
 printf "\n* Pulling image from registry to local docker daemon...\n"
-docker pull localhost:5443/containerify-integration-test:localtest &> /dev/null
+docker pull ${LOCAL_REGISTRY}:5443/containerify-integration-test:localtest &> /dev/null
 
 printf "* Running image on local docker daemon...\n"
-docker run --rm -it localhost:5443/containerify-integration-test:localtest
+docker run --rm -it ${LOCAL_REGISTRY}:5443/containerify-integration-test:localtest
 
 printf "\n* Deleting image from registry to local docker daemon...\n"
-docker rmi localhost:5443/containerify-integration-test:localtest > /dev/null
+docker rmi ${LOCAL_REGISTRY}:5443/containerify-integration-test:localtest > /dev/null
 
 printf "* Stopping local containerify test registry...\n"
 docker stop registry-containerify-test > /dev/null
