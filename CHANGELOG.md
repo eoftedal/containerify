@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.0.0] - 2024-01-17
+
+## Added
+
+- Support for specifying registry+image in one parameter (`--to` and `--from` as opposed to `--toRegistry` + ´--toImage` etc)
+- Support for cross mounting of base imagelayers: https://docker-docs.uclv.cu/registry/spec/api/#cross-repository-blob-mount . This should save space in registries and be more efficient.
+
+## Fixed
+
+- Uses `application/content-stream` as Content-Type when POSTing layers to registry as Github++ doesn't like us posting the actual media type and the docker description also suggests `application/content-stream` (https://docker-docs.uclv.cu/registry/spec/api/#monolithic-upload)
+- Handle relative URLs when posting to /blobs/uploads/
+
 ## [2.6.1] - 2023-11-12
 
 ### Added
@@ -9,7 +21,6 @@
 ### Fixed
 
 - Follow redirects when checking for existing layers in remote registry
-
 
 ## [2.6.0] - 2023-10-11
 
