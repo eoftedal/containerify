@@ -30,7 +30,7 @@ containerify --fromImage nginx:alpine --folder . --toImage frontend:latest --cus
 
 This will take the `nginx:alpine` image, and copy the files from `./dist/` into `/usr/share/nginx/html`.
 
-### Using with Github Container Registry (ghcr.io)
+### Using with GitHub Container Registry (ghcr.io)
 
 1. Create a token from https://github.com/settings/tokens/new?scopes=write:packages or use GITHUB_TOKEN from Github Actions
 2. Example: `containerify --registry https://ghcr.io/v2/ --token "$GITHUB_TOKEN" --fromImage docker-mirror/node:alpine --toImage <some image name>:<some tag> --folder . `
@@ -40,6 +40,12 @@ This will take the `nginx:alpine` image, and copy the files from `./dist/` into 
 1. Create the repository in AWS from the console or through using the CLI
 2. Create token using `aws ecr get-authorization-token --output text --query 'authorizationData[].authorizationToken'`
 3. Example: `containerify  --toToken "Basic $TOKEN" --toRegistry https://<AWS ACCOUNT ID>.dkr.ecr.<AWS region for repository>.amazonaws.com/v2/ --fromImage node:alpine --toImage <name of repository>:<some tag> --folder .`
+
+### Using with GitLab Container Registry (registry.gitlab.com)
+
+1. Create the repository in GitLab
+2. Login using your username and password, [CI-credentials](https://docs.gitlab.com/ee/ci/jobs/ci_job_token.html), or [obtain a token from GitLab](https://docs.gitlab.com/ee/api/container_registry.html#obtain-token-from-gitlab)
+3. Example using CI-credentials `containerify --toToken "Basic $(echo -n '${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}' | base64)" --to registry.gitlab.com/<Gitlab organisation>/<repository>:<tag>`
 
 ### Command line options
 
