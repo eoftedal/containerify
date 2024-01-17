@@ -1,5 +1,4 @@
 import * as https from "https";
-import * as http from "http";
 import * as URL from "url";
 import * as fss from "fs";
 import { promises as fs } from "fs";
@@ -21,75 +20,24 @@ import {
 	Registry,
 } from "./types";
 import { DockerV2, OCI } from "./MIMETypes";
-import { getLayerTypeFileEnding } from "./utils";
-
-type Headers = Record<string, string>;
-
-const redirectCodes = [308, 307, 303, 302, 301];
-
-function request(
-	options: https.RequestOptions,
-	allowInsecure: InsecureRegistrySupport,
-	callback: (res: http.IncomingMessage) => void,
-) {
-	if (allowInsecure == InsecureRegistrySupport.YES) options.rejectUnauthorized = false;
-	const req = (options.protocol == "https:" ? https : http).request(options, (res) => {
-		callback(res);
-	});
-	req.on("error", (e) => {
-		logger.error("ERROR: " + e, options.method, options.path);
-		throw e;
-	});
-	return req;
-}
-
-function isOk(httpStatus: number) {
-	return httpStatus >= 200 && httpStatus < 300;
-}
-
-function getHash(digest: string): string {
-	return digest.split(":")[1];
-}
-
-function parseImage(imageStr: string) {
-	const ar = imageStr.split(":");
-	const tag = ar[1] || "latest";
-	const ipath = ar[0];
-	return { path: ipath, tag: tag };
-}
-
-function toError(res: http.IncomingMessage) {
-	return `Unexpected HTTP status ${res.statusCode} : ${res.statusMessage}`;
-}
-
-function waitForResponseEnd(res: http.IncomingMessage, cb: (data: Buffer) => void) {
-	const data: Buffer[] = [];
-	res.on("data", (d) => data.push(d));
-	res.on("end", () => cb(Buffer.concat(data)));
-}
-
-function dl(uri: string, headers: Headers, allowInsecure: InsecureRegistrySupport): Promise<string> {
-	logger.debug("dl", uri);
-	return new Promise((resolve, reject) => {
-		followRedirects(uri, headers, allowInsecure, (result) => {
-			if ("error" in result) return reject(result.error);
-			const { res } = result;
-			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
-			if (!isOk(res.statusCode ?? 0)) return reject(toError(res));
-			waitForResponseEnd(res, (data) => resolve(data.toString()));
-		});
-	});
-}
-
-async function dlJson<T>(uri: string, headers: Headers, allowInsecure: InsecureRegistrySupport): Promise<T> {
-	const data = await dl(uri, headers, allowInsecure);
-	return JSON.parse(Buffer.from(data).toString("utf-8"));
-}
+import { getHash, getLayerTypeFileEnding, parseImage } from "./utils";
+import {
+	isOk,
+	request,
+	followRedirects,
+	toError,
+	waitForResponseEnd,
+	redirectCodes,
+	dlJson,
+	buildHeaders,
+	createHttpOptions,
+} from "./httpRequest";
+import { OutgoingHttpHeaders } from "http";
 
 function dlToFile(
 	uri: string,
 	file: string,
-	headers: Headers,
+	headers: OutgoingHttpHeaders,
 	allowInsecure: InsecureRegistrySupport,
 	cacheFolder?: string,
 	skipCache = false,
@@ -127,39 +75,9 @@ function dlToFile(
 	});
 }
 
-type Callback = (result: { error: string } | { res: http.IncomingMessage }) => void;
-
-function followRedirects(
-	uri: string,
-	headers: Headers,
-	allowInsecure: InsecureRegistrySupport,
-	cb: Callback,
-	count = 0,
-) {
-	logger.debug("rc", uri);
-	const options: https.RequestOptions = { ...URL.parse(uri) };
-	options.headers = headers;
-	options.method = "GET";
-	request(options, allowInsecure, (res) => {
-		if (redirectCodes.includes(res.statusCode ?? 0)) {
-			if (count > 10) return cb({ error: "Too many redirects for " + uri });
-			const location = res.headers.location;
-			if (!location) return cb({ error: "Redirect, but missing location header" });
-			return followRedirects(location, headers, allowInsecure, cb, count + 1);
-		}
-		cb({ res });
-	}).end();
-}
-
-function buildHeaders(accept: string, auth: string) {
-	const headers: Headers = { accept: accept };
-	if (auth) headers.authorization = auth;
-	return headers;
-}
-
-function headOk(
+function checkIfLayerExists(
 	url: string,
-	headers: Headers,
+	headers: OutgoingHttpHeaders,
 	allowInsecure: InsecureRegistrySupport,
 	optimisticCheck = false,
 	depth = 0,
@@ -170,9 +88,7 @@ function headOk(
 	}
 	return new Promise((resolve, reject) => {
 		logger.debug(`HEAD ${url}`);
-		const options: https.RequestOptions = URL.parse(url);
-		options.headers = headers;
-		options.method = "HEAD";
+		const options = createHttpOptions("HEAD", url, headers);
 		request(options, allowInsecure, (res) => {
 			logger.debug(`HEAD ${url}`, res.statusCode);
 			waitForResponseEnd(res, (data) => {
@@ -183,7 +99,7 @@ function headOk(
 				// Redirected
 				if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
 					if (optimisticCheck) return resolve(true);
-					return resolve(headOk(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
+					return resolve(checkIfLayerExists(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
 				}
 				// Unauthorized
 				// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
@@ -204,19 +120,17 @@ function uploadContent(
 	fileConfig: PartialManifestConfig,
 	allowInsecure: InsecureRegistrySupport,
 	auth: string,
-	contentType: string,
+	contentType = "application/octet-stream",
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
 		logger.debug("Uploading: ", file);
 		let url = uploadUrl;
 		if (fileConfig.digest) url += (url.indexOf("?") == -1 ? "?" : "&") + "digest=" + fileConfig.digest;
-		const options: https.RequestOptions = URL.parse(url);
-		options.method = "PUT";
-		options.headers = {
+		const options = createHttpOptions("PUT", url, {
 			authorization: auth,
 			"content-length": fileConfig.size,
 			"content-type": contentType,
-		};
+		});
 		logger.debug(options.method, url);
 		const req = request(options, allowInsecure, (res) => {
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
@@ -228,8 +142,46 @@ function uploadContent(
 				});
 			}
 		});
-		fss.createReadStream(file).pipe(req);
+		fss
+			.createReadStream(file)
+			.pipe(req)
+			.on("error", (e) => {
+				reject("Error reading file for upload: " + e);
+			});
 	});
+}
+
+export async function processToken(
+	registryBaseUrl: string,
+	allowInsecure: InsecureRegistrySupport,
+	imagePath: string,
+	token?: string,
+): Promise<string> {
+	const { hostname } = URL.parse(registryBaseUrl);
+	const image = parseImage(imagePath);
+	if (hostname?.endsWith(".docker.io") && !token) {
+		const resp = await dlJson<{ token: string }>(
+			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.path}:pull`,
+			{},
+			allowInsecure,
+		);
+		return `Bearer ${resp.token}`;
+	}
+	if (hostname?.endsWith(".gitlab.com") && token?.startsWith("Basic")) {
+		if (token?.includes(":")) {
+			token = "Basic " + Buffer.from(token?.replace("Basic ", "")).toString("base64");
+		}
+		const resp = await dlJson<{ token: string }>(
+			`https://gitlab.com/jwt/auth?service=container_registry&scope=repository:${image.path}:pull,push`,
+			{ Authorization: token },
+			allowInsecure,
+		);
+		return `Bearer ${resp.token}`;
+	}
+	if (!token) throw new Error("Needs auth token to upload to " + registryBaseUrl);
+	if (token.startsWith("Basic ")) return token;
+	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
+	return "Bearer " + token;
 }
 
 type Mount = { mount: string; from: string };
@@ -238,21 +190,25 @@ type UploadURLorMounted = UploadURL | { mountSuccess: true };
 
 export function createRegistry(
 	registryBaseUrl: string,
-	token: string,
+	auth: string,
 	allowInsecure: InsecureRegistrySupport,
 	optimisticToRegistryCheck = false,
 ): Registry {
-	const auth = token;
-
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
-		return await headOk(url, buildHeaders(layer.mediaType, auth), allowInsecure, optimisticToRegistryCheck, 0);
+		return await checkIfLayerExists(
+			url,
+			buildHeaders(layer.mediaType, auth),
+			allowInsecure,
+			optimisticToRegistryCheck,
+			0,
+		);
 	}
 
 	async function uploadLayerContent(uploadUrl: string, layer: Layer, dir: string) {
 		logger.info(layer.digest);
 		const file = path.join(dir, getHash(layer.digest) + getLayerTypeFileEnding(layer));
-		await uploadContent(uploadUrl, file, layer, allowInsecure, auth, "application/octet-stream");
+		await uploadContent(uploadUrl, file, layer, allowInsecure, auth);
 	}
 
 	async function getUploadUrl(
@@ -427,14 +383,7 @@ export function createRegistry(
 		const configUploadUrl = await getUploadUrl(image);
 		if ("mountSuccess" in configUploadUrl) throw new Error("Mounting not supported for config upload");
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
-		await uploadContent(
-			configUploadUrl.uploadUrl,
-			configFile,
-			manifest.config,
-			allowInsecure,
-			auth,
-			"application/octet-stream",
-		);
+		await uploadContent(configUploadUrl.uploadUrl, configFile, manifest.config, allowInsecure, auth);
 
 		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
@@ -502,37 +451,4 @@ export function parseFullImageUrl(imageStr: string): { registry: string; image: 
 		registry: `https://${registry}/v2/`,
 		image: rest.join("/"),
 	};
-}
-
-export async function processToken(
-	registryBaseUrl: string,
-	allowInsecure: InsecureRegistrySupport,
-	imagePath: string,
-	token?: string,
-): Promise<string> {
-	const { hostname } = URL.parse(registryBaseUrl);
-	const image = parseImage(imagePath);
-	if (hostname?.endsWith(".docker.io") && !token) {
-		const resp = await dlJson<{ token: string }>(
-			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.path}:pull`,
-			{},
-			allowInsecure,
-		);
-		return `Bearer ${resp.token}`;
-	}
-	if (hostname?.endsWith(".gitlab.com") && token?.startsWith("Basic")) {
-		if (token?.includes(":")){
-			token = "Basic " + Buffer.from(token?.replace("Basic ", "")).toString("base64")
-		}
-		const resp = await dlJson<{ token: string }>(
-			`https://gitlab.com/jwt/auth?service=container_registry&scope=repository:${image.path}:pull,push`,
-			{ "Authorization": token },
-			allowInsecure,
-		);
-		return `Bearer ${resp.token}`;
-	}
-	if (!token) throw new Error("Need auth token to upload to " + registryBaseUrl);
-	if (token.startsWith("Basic ")) return token;
-	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
-	return "Bearer " + token;
 }

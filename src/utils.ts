@@ -91,3 +91,14 @@ export function getLayerTypeFileEnding(layer: Layer) {
 			throw new Error(`Layer mediaType ${layer.mediaType} not known.`);
 	}
 }
+
+export function getHash(digest: string): string {
+	return digest.split(":")[1];
+}
+
+export function parseImage(imageStr: string) {
+	const ar = imageStr.split(":");
+	const tag = ar[1] || "latest";
+	const ipath = ar[0];
+	return { path: ipath, tag: tag };
+}
