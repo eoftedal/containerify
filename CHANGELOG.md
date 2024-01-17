@@ -4,8 +4,9 @@
 
 ## Added
 
-- Support for specifying registry+image in one parameter (`--to` and `--from` as opposed to `--toRegistry` + ´--toImage` etc)
+- Support for specifying registry+image in one parameter (`--to` and `--from` as opposed to `--toRegistry` + `--toImage` etc)
 - Support for cross mounting of base imagelayers: https://docker-docs.uclv.cu/registry/spec/api/#cross-repository-blob-mount . This should save space in registries and be more efficient.
+- Support for GitLab CI-tokens
 
 ## Fixed
 

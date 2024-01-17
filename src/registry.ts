@@ -520,6 +520,17 @@ export async function processToken(
 		);
 		return `Bearer ${resp.token}`;
 	}
+	if (hostname?.endsWith(".gitlab.com") && token?.startsWith("Basic")) {
+		if (token?.includes(":")){
+			token = "Basic " + Buffer.from(token?.replace("Basic ", "")).toString("base64")
+		}
+		const resp = await dlJson<{ token: string }>(
+			`https://gitlab.com/jwt/auth?service=container_registry&scope=repository:${image.path}:pull,push`,
+			{ "Authorization": token },
+			allowInsecure,
+		);
+		return `Bearer ${resp.token}`;
+	}
 	if (!token) throw new Error("Need auth token to upload to " + registryBaseUrl);
 	if (token.startsWith("Basic ")) return token;
 	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
