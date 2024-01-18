@@ -126,11 +126,9 @@ function uploadContent(
 		logger.debug("Uploading: ", file);
 		let url = uploadUrl;
 		if (fileConfig.digest) url += (url.indexOf("?") == -1 ? "?" : "&") + "digest=" + fileConfig.digest;
-		const options = createHttpOptions("PUT", url, {
-			authorization: auth,
-			"content-length": fileConfig.size,
-			"content-type": contentType,
-		});
+		const headers: OutgoingHttpHeaders = { "content-length": fileConfig.size, "content-type": contentType};
+		if (auth) headers.authorization = auth;
+		const options = createHttpOptions("PUT", url, headers);
 		logger.debug(options.method, url);
 		const req = request(options, allowInsecure, (res) => {
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
@@ -222,7 +220,7 @@ export async function createRegistry(
 			const url = `${registryBaseUrl}${image.path}/blobs/uploads/${parameters.size > 0 ? "?" + parameters : ""}`;
 			const options: https.RequestOptions = URL.parse(url);
 			options.method = "POST";
-			options.headers = { authorization: auth };
+			if (auth) options.headers = { authorization: auth };
 			request(options, allowInsecure, (res) => {
 				logger.debug("POST", `${url}`, res.statusCode);
 				if (res.statusCode == 202) {

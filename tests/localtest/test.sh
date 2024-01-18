@@ -54,9 +54,15 @@ docker push ${LOCAL_REGISTRY}:5443/node > /dev/null
 
 printf "* Running containerify to pull from and push result to the local containerify test registry...\n"
 cd ../integration/app
-npm install
+npm ci
 cd ../../localtest
-../../lib/cli.js --fromImage node --doCrossMount --registry https://${LOCAL_REGISTRY}:5443/v2/ --toImage containerify-integration-test:localtest --folder ../integration/app --setTimeStamp "2023-03-07T12:53:10.471Z" --allowInsecureRegistries --token "Basic $BASICAUTH"
+../../lib/cli.js --registry https://${LOCAL_REGISTRY}:5443/v2/ \
+                 --allowInsecureRegistries \
+                 --token "Basic $BASICAUTH" \
+                 --fromImage node \
+                 --toImage containerify-integration-test:localtest \
+                 --doCrossMount \
+                 --folder ../integration/app --setTimeStamp "2023-03-07T12:53:10.471Z"
 
 
 printf "\n* Pulling image from registry to local docker daemon...\n"

@@ -242,7 +242,6 @@ exitWithErrorIf(
 	!options.toRegistry && !options.toTar && !options.toDocker,
 	"Must specify either --toTar, --toRegistry or --toDocker",
 );
-exitWithErrorIf(!!options.toRegistry && !options.toToken, "A token must be given when uploading to docker hub");
 
 if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
 if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
