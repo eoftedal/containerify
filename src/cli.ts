@@ -6,14 +6,14 @@ import * as path from "path";
 import * as fse from "fs-extra";
 import * as fs from "fs";
 
-import { DEFAULT_DOCKER_REGISTRY, createRegistry, processToken, parseFullImageUrl } from "./registry";
+import { DEFAULT_DOCKER_REGISTRY, createRegistry, parseFullImageUrl } from "./registry";
 import appLayerCreator from "./appLayerCreator";
 import dockerExporter from "./dockerExporter";
 import tarExporter from "./tarExporter";
 
 import logger from "./logger";
 import { InsecureRegistrySupport, Options } from "./types";
-import {omit, getPreferredPlatform, parseImage} from "./utils";
+import { omit, getPreferredPlatform } from "./utils";
 import { ensureEmptyDir } from "./fileutil";
 import { VERSION } from "./version";
 
@@ -282,12 +282,7 @@ async function run(options: Options) {
 	const todir = await ensureEmptyDir(path.join(tmpdir, "to"));
 	const allowInsecure = options.allowInsecureRegistries ? InsecureRegistrySupport.YES : InsecureRegistrySupport.NO;
 	const fromRegistryUrl = options.fromRegistry ?? DEFAULT_DOCKER_REGISTRY;
-	const fromRegistry = await createRegistry(
-		fromRegistryUrl,
-		options.fromImage,
-		allowInsecure,
-		options.fromToken,
-	);
+	const fromRegistry = await createRegistry(fromRegistryUrl, options.fromImage, allowInsecure, options.fromToken);
 	const originalManifest = await fromRegistry.download(
 		options.fromImage,
 		fromdir,
@@ -310,7 +305,7 @@ async function run(options: Options) {
 	}
 	if (options.toRegistry) {
 		if (!options.token && allowInsecure == InsecureRegistrySupport.NO) {
-			throw new Error("Need auth token to upload to " + options.toRegistry)
+			throw new Error("Need auth token to upload to " + options.toRegistry);
 		}
 		const toRegistry = await createRegistry(
 			options.toRegistry,

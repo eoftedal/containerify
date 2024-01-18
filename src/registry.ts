@@ -151,7 +151,7 @@ function uploadContent(
 	});
 }
 
-export async function processToken(
+async function processToken(
 	registryBaseUrl: string,
 	allowInsecure: InsecureRegistrySupport,
 	imagePath: string,
@@ -178,7 +178,7 @@ export async function processToken(
 		);
 		return `Bearer ${resp.token}`;
 	}
-	if (!token) return ""
+	if (!token) return ""; //We allow to pull from tokenless registries
 	if (token.startsWith("Basic ")) return token;
 	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
 	return "Bearer " + token;
@@ -195,7 +195,7 @@ export async function createRegistry(
 	auth?: string,
 	optimisticToRegistryCheck = false,
 ): Promise<Registry> {
-	const token = await processToken(registryBaseUrl, allowInsecure, imagePath, auth)
+	const token = await processToken(registryBaseUrl, allowInsecure, imagePath, auth);
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
 		return await checkIfLayerExists(
