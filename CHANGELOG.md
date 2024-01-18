@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.1] - 2024-01-18
+
+### Fixed
+
+- Allow pulling from registries without a token
+
 ## [3.0.0] - 2024-01-17
 
 ### Added

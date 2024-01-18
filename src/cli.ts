@@ -13,7 +13,7 @@ import tarExporter from "./tarExporter";
 
 import logger from "./logger";
 import { InsecureRegistrySupport, Options } from "./types";
-import { omit, getPreferredPlatform } from "./utils";
+import {omit, getPreferredPlatform, parseImage} from "./utils";
 import { ensureEmptyDir } from "./fileutil";
 import { VERSION } from "./version";
 
@@ -282,10 +282,11 @@ async function run(options: Options) {
 	const todir = await ensureEmptyDir(path.join(tmpdir, "to"));
 	const allowInsecure = options.allowInsecureRegistries ? InsecureRegistrySupport.YES : InsecureRegistrySupport.NO;
 	const fromRegistryUrl = options.fromRegistry ?? DEFAULT_DOCKER_REGISTRY;
-	const fromRegistry = createRegistry(
+	const fromRegistry = await createRegistry(
 		fromRegistryUrl,
-		await processToken(fromRegistryUrl, allowInsecure, options.fromImage, options.fromToken),
+		options.fromImage,
 		allowInsecure,
+		options.fromToken,
 	);
 	const originalManifest = await fromRegistry.download(
 		options.fromImage,
@@ -308,10 +309,14 @@ async function run(options: Options) {
 		await tarExporter.saveToTar(todir, tmpdir, options.toTar, [options.toImage], options);
 	}
 	if (options.toRegistry) {
-		const toRegistry = createRegistry(
+		if (!options.token && allowInsecure == InsecureRegistrySupport.NO) {
+			throw new Error("Need auth token to upload to " + options.toRegistry)
+		}
+		const toRegistry = await createRegistry(
 			options.toRegistry,
-			await processToken(options.toRegistry, allowInsecure, options.toImage, options.toToken),
+			options.toImage,
 			allowInsecure,
+			options.toToken,
 			options.optimisticToRegistryCheck,
 		);
 		await toRegistry.upload(options.toImage, todir, options.doCrossMount, originalManifest, options.fromImage);

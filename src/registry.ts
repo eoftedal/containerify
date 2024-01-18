@@ -178,7 +178,7 @@ export async function processToken(
 		);
 		return `Bearer ${resp.token}`;
 	}
-	if (!token) throw new Error("Needs auth token to upload to " + registryBaseUrl);
+	if (!token) return ""
 	if (token.startsWith("Basic ")) return token;
 	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
 	return "Bearer " + token;
@@ -188,17 +188,19 @@ type Mount = { mount: string; from: string };
 type UploadURL = { uploadUrl: string };
 type UploadURLorMounted = UploadURL | { mountSuccess: true };
 
-export function createRegistry(
+export async function createRegistry(
 	registryBaseUrl: string,
-	auth: string,
+	imagePath: string,
 	allowInsecure: InsecureRegistrySupport,
+	auth?: string,
 	optimisticToRegistryCheck = false,
-): Registry {
+): Promise<Registry> {
+	const token = await processToken(registryBaseUrl, allowInsecure, imagePath, auth)
 	async function exists(image: Image, layer: Layer) {
 		const url = `${registryBaseUrl}${image.path}/blobs/${layer.digest}`;
 		return await checkIfLayerExists(
 			url,
-			buildHeaders(layer.mediaType, auth),
+			buildHeaders(layer.mediaType, token),
 			allowInsecure,
 			optimisticToRegistryCheck,
 			0,
@@ -208,7 +210,7 @@ export function createRegistry(
 	async function uploadLayerContent(uploadUrl: string, layer: Layer, dir: string) {
 		logger.info(layer.digest);
 		const file = path.join(dir, getHash(layer.digest) + getLayerTypeFileEnding(layer));
-		await uploadContent(uploadUrl, file, layer, allowInsecure, auth);
+		await uploadContent(uploadUrl, file, layer, allowInsecure, token);
 	}
 
 	async function getUploadUrl(
@@ -263,7 +265,7 @@ export function createRegistry(
 		// Accept both manifests and index/manifest lists
 		const res = await dlJson<Manifest | Index>(
 			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
-			buildHeaders(`${OCI.index}, ${OCI.manifest}, ${DockerV2.index}, ${DockerV2.manifest}`, auth),
+			buildHeaders(`${OCI.index}, ${OCI.manifest}, ${DockerV2.index}, ${DockerV2.manifest}`, token),
 			allowInsecure,
 		);
 
@@ -316,7 +318,7 @@ export function createRegistry(
 	): Promise<Config> {
 		return await dlJson<Config>(
 			`${registryBaseUrl}${image.path}/blobs/${config.digest}`,
-			buildHeaders("*/*", auth),
+			buildHeaders("*/*", token),
 			allowInsecure,
 		);
 	}
@@ -333,7 +335,7 @@ export function createRegistry(
 		await dlToFile(
 			`${registryBaseUrl}${image.path}/blobs/${layer.digest}`,
 			path.join(folder, file),
-			buildHeaders(layer.mediaType, auth),
+			buildHeaders(layer.mediaType, token),
 			allowInsecure,
 			cacheFolder,
 		);
@@ -383,7 +385,7 @@ export function createRegistry(
 		const configUploadUrl = await getUploadUrl(image);
 		if ("mountSuccess" in configUploadUrl) throw new Error("Mounting not supported for config upload");
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
-		await uploadContent(configUploadUrl.uploadUrl, configFile, manifest.config, allowInsecure, auth);
+		await uploadContent(configUploadUrl.uploadUrl, configFile, manifest.config, allowInsecure, token);
 
 		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
@@ -392,7 +394,7 @@ export function createRegistry(
 			manifestFile,
 			{ mediaType: manifest.mediaType, size: manifestSize },
 			allowInsecure,
-			auth,
+			token,
 			manifest.mediaType,
 		);
 	}
