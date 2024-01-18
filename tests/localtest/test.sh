@@ -56,8 +56,7 @@ printf "* Running containerify to pull from and push result to the local contain
 cd ../integration/app
 npm ci
 cd ../../localtest
-../../lib/cli.js --registry https://${LOCAL_REGISTRY}:5443/v2/ \
-                 --allowInsecureRegistries \
+NODE_TLS_REJECT_UNAUTHORIZED=0 ../../lib/cli.js --registry https://${LOCAL_REGISTRY}:5443/v2/ \
                  --token "Basic $BASICAUTH" \
                  --fromImage node \
                  --toImage containerify-integration-test:localtest \
