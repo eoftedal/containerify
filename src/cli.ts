@@ -52,6 +52,7 @@ const possibleArgs = {
 		"Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config",
 	"--verbose": "Verbose logging",
 	"--allowInsecureRegistries": "Allow insecure registries (with self-signed/untrusted cert)",
+	"--allowNoPushAuth": "Allow pushing images without a authentication/token to registries that allow it",
 	"--customContent <dirs/files>":
 		"Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as local-path:absolute-container-path if you want to place it in a specific location",
 	"--extraContent <dirs/files>":
@@ -242,7 +243,7 @@ exitWithErrorIf(
 	!options.toRegistry && !options.toTar && !options.toDocker,
 	"Must specify either --toTar, --toRegistry or --toDocker",
 );
-exitWithErrorIf(!!options.toRegistry && !options.toToken, "A token must be given when uploading to docker hub");
+exitWithErrorIf(!!options.toRegistry && !options.toToken && !options.allowNoPushAuth, "A token must be provided when uploading images");
 
 if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
 if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
@@ -304,9 +305,6 @@ async function run(options: Options) {
 		await tarExporter.saveToTar(todir, tmpdir, options.toTar, [options.toImage], options);
 	}
 	if (options.toRegistry) {
-		if (!options.token && allowInsecure == InsecureRegistrySupport.NO) {
-			throw new Error("Need auth token to upload to " + options.toRegistry);
-		}
 		const toRegistry = await createRegistry(
 			options.toRegistry,
 			options.toImage,

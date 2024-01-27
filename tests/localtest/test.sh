@@ -15,7 +15,7 @@ mkdir -p tmp/auth
 printf "* Generating key for local registry...\n"
 openssl req \
   -newkey rsa:4096 -nodes -sha256 -keyout tmp/certs/domain.key \
-  -addext "subjectAltName = IP:127.0.0.1" \
+  -addext "subjectAltName = IP:${LOCAL_REGISTRY}" \
   -subj "/C=NO/ST=containerify/L=containerify/O=containerify Integration/OU=Test Department/CN=containerify.test" \
   -x509 -days 365 -out tmp/certs/domain.crt > /dev/null 2>&1
 
