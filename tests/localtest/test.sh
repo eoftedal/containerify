@@ -15,7 +15,7 @@ mkdir -p tmp/auth
 printf "* Generating key for local registry...\n"
 openssl req \
   -newkey rsa:4096 -nodes -sha256 -keyout tmp/certs/domain.key \
-  -addext "subjectAltName = DNS:myregistry.domain.com" \
+  -addext "subjectAltName = IP:127.0.0.1" \
   -subj "/C=NO/ST=containerify/L=containerify/O=containerify Integration/OU=Test Department/CN=containerify.test" \
   -x509 -days 365 -out tmp/certs/domain.crt > /dev/null 2>&1
 
@@ -54,9 +54,15 @@ docker push ${LOCAL_REGISTRY}:5443/node > /dev/null
 
 printf "* Running containerify to pull from and push result to the local containerify test registry...\n"
 cd ../integration/app
-npm install
+npm ci
 cd ../../localtest
-../../lib/cli.js --fromImage node --doCrossMount --registry https://${LOCAL_REGISTRY}:5443/v2/ --toImage containerify-integration-test:localtest --folder ../integration/app --setTimeStamp "2023-03-07T12:53:10.471Z" --allowInsecureRegistries --token "Basic $BASICAUTH"
+NODE_EXTRA_CA_CERTS=tmp/certs/domain.crt ../../lib/cli.js \
+  --fromImage node \
+  --doCrossMount \
+  --registry https://${LOCAL_REGISTRY}:5443/v2/ \
+  --toImage containerify-integration-test:localtest \
+  --folder ../integration/app --setTimeStamp "2023-03-07T12:53:10.471Z" \
+  --token "Basic $BASICAUTH"
 
 
 printf "\n* Pulling image from registry to local docker daemon...\n"
