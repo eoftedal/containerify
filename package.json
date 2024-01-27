@@ -19,6 +19,9 @@
 		"containerify": "./lib/cli.js"
 	},
 	"author": "Erlend Oftedal <erlend@oftedal.no>",
+	"contributors": [
+		"Vegard S. Hagen <vegard@stonegarden.dev>"
+	],
 	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
