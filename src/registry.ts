@@ -160,29 +160,33 @@ async function processToken(
 ): Promise<string> {
 	const { hostname } = URL.parse(registryBaseUrl);
 	const image = parseImage(imagePath);
-	if (hostname?.endsWith(".docker.io") && !token) {
-		const resp = await dlJson<{ token: string }>(
-			`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${image.path}:pull`,
-			{},
-			allowInsecure,
-		);
-		return `Bearer ${resp.token}`;
-	}
-	if (hostname?.endsWith(".gitlab.com") && token?.startsWith("Basic")) {
-		if (token?.includes(":")) {
-			token = "Basic " + Buffer.from(token?.replace("Basic ", "")).toString("base64");
-		}
-		const resp = await dlJson<{ token: string }>(
-			`https://gitlab.com/jwt/auth?service=container_registry&scope=repository:${image.path}:pull,push`,
-			{ Authorization: token },
-			allowInsecure,
-		);
-		return `Bearer ${resp.token}`;
-	}
+	if (hostname?.endsWith(".docker.io") && !token) return getDockerToken(image.path, allowInsecure)
 	if (!token) return ""; //We allow to pull from tokenless registries
+	if (hostname?.endsWith(".gitlab.com") && token.startsWith("Basic ")) return getGitLabToken(token, image.path, allowInsecure)
 	if (token.startsWith("Basic ")) return token;
 	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
 	return "Bearer " + token;
+}
+
+async function getDockerToken(imagePath: string, allowInsecure: InsecureRegistrySupport) {
+	const resp = await dlJson<{ token: string }>(
+		`https://auth.docker.io/token?service=registry.docker.io&scope=repository:${imagePath}:pull`,
+		{},
+		allowInsecure,
+	);
+	return `Bearer ${resp.token}`;
+}
+
+async function getGitLabToken(token: string, imagePath: string, allowInsecure: InsecureRegistrySupport) {
+	if (token.includes(":")) {
+		token = "Basic " + Buffer.from(token?.replace("Basic ", "")).toString("base64");
+	}
+	const resp = await dlJson<{ token: string }>(
+		`https://gitlab.com/jwt/auth?service=container_registry&scope=repository:${imagePath}:pull,push`,
+		{ Authorization: token },
+		allowInsecure,
+	);
+	return `Bearer ${resp.token}`;
 }
 
 type Mount = { mount: string; from: string };
@@ -223,7 +227,7 @@ export async function createRegistry(
 			const url = `${registryBaseUrl}${image.path}/blobs/uploads/${parameters.size > 0 ? "?" + parameters : ""}`;
 			const options: https.RequestOptions = URL.parse(url);
 			options.method = "POST";
-			if (auth) options.headers = { authorization: auth };
+			if (token) options.headers = { authorization: token };
 			request(options, allowInsecure, (res) => {
 				logger.debug("POST", `${url}`, res.statusCode);
 				if (res.statusCode == 202) {

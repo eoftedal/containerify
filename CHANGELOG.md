@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.1.1] - 2024-01-28
+
+### Fixed
+
+- Use processed token instead of raw supplied auth to get upload URL
+
 ## [3.1.0] - 2024-01-27
 
 ### Added
