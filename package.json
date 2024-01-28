@@ -12,7 +12,7 @@
 		"check": "npm run lint && npm run typecheck",
 		"dev": "tsc --watch",
 		"integrationTest": "cd tests/integration/ && ./test.sh",
-		"registryTest": "cd tests/localtest/ && ./test.sh",
+		"registryTest": "cd tests/localtest/ && ./test.sh && ./test-insecure.sh",
 		"allTests": "npm run integrationTest && npm run registryTest"
 	},
 	"bin": {
