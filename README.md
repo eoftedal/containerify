@@ -45,7 +45,7 @@ This will take the `nginx:alpine` image, and copy the files from `./dist/` into 
 
 1. Create the repository in GitLab
 2. Login using your username and password, [CI-credentials](https://docs.gitlab.com/ee/ci/jobs/ci_job_token.html), or [obtain a token from GitLab](https://docs.gitlab.com/ee/api/container_registry.html#obtain-token-from-gitlab)
-3. Example using CI-credentials `containerify --toToken "Basic $(echo -n '${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}' | base64)" --to registry.gitlab.com/<Gitlab organisation>/<repository>:<tag>`
+3. Example using CI-credentials `containerify --toToken "Basic $(echo -n "${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD}" | base64)" --to registry.gitlab.com/<Gitlab organisation>/<repository>:<tag>`
 
 ### Command line options
 
