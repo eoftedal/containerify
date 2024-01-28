@@ -80,6 +80,7 @@ Options:
   --setTimeStamp <timestamp>     Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config
   --verbose                      Verbose logging
   --allowInsecureRegistries      Allow insecure registries (with self-signed/untrusted cert)
+  --allowNoPushAuth              Allow pushing images without authentication/token if the registry allows it
   --customContent <dirs/files>   Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as
                                  local-path:absolute-container-path if you want to place it in a specific location
   --extraContent <dirs/files>    Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc

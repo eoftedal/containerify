@@ -91,6 +91,7 @@ export type Options = {
 	setTimeStamp?: string;
 	verbose?: boolean;
 	allowInsecureRegistries?: boolean;
+	allowNoPushAuth?: boolean;
 	customContent: Record<string, string>;
 	extraContent: Record<string, string>;
 	layerOwner?: string;

@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.1.0] - 2024-01-27
+
+### Added
+
+- Allow pushing without a token (`--allowNoPushAuth`) to registries that allow it
+
+### Fixed
+
+- Fixed an error with failed push (using a token) when pulling without a token
+
 ## [3.0.1] - 2024-01-18
 
 ### Fixed
