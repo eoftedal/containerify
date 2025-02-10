@@ -16,7 +16,7 @@
 		"allTests": "npm run integrationTest && npm run registryTest"
 	},
 	"bin": {
-		"containerify": "./lib/cli.js"
+		"containerify": "lib/cli.js"
 	},
 	"author": "Erlend Oftedal <erlend@oftedal.no>",
 	"contributors": [
@@ -25,7 +25,7 @@
 	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/eoftedal/containerify.git"
+		"url": "git+https://github.com/eoftedal/containerify.git"
 	},
 	"files": [
 		"lib/"
