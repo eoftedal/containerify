@@ -300,12 +300,12 @@ export async function createRegistry(
 		// If the intersection of matching architectures and OS is one we've found our optimal match
 		const intersection = new Set([...matchingArchitectures].filter((x) => matchingOSes.has(x)));
 		if (intersection.size == 1) {
-			return intersection.values().next().value;
+			return intersection.values().next().value!;
 		}
 
 		// If we don't have a perfect match we give a warning and try the first matching architecture
 		if (matchingArchitectures.size >= 1) {
-			const matchingArch = matchingArchitectures.values().next().value;
+			const matchingArch = matchingArchitectures.values().next().value!;
 			logger.info(`[WARN] Preferred OS '${preferredPlatform.os}' not available.`);
 			logger.info("[WARN] Using closest available manifest:", JSON.stringify(matchingArch.platform));
 			return matchingArch;

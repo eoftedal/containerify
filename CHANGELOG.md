@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.1.2] - 2025-02-10
+
+### Bugfix
+
+- Docker redirects to AWS signed URL did not complete
+
 ## [3.1.1] - 2024-01-28
 
 ### Fixed

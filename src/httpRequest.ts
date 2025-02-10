@@ -16,6 +16,10 @@ export function createHttpOptions(method: HttpMethod, url: string, headers: Outg
 	const options: https.RequestOptions = { ...URL.parse(url) };
 	options.headers = headers;
 	options.method = method;
+	if (url.includes("X-Amz-Algorithm") && method == "GET") {
+		//We are using a pre-signed URL, so we don't need to send the Authorization header
+		options.headers["Authorization"] = "";
+	}
 	return options;
 }
 
@@ -57,8 +61,16 @@ function dl(uri: string, headers: OutgoingHttpHeaders, allowInsecure: InsecureRe
 			if ("error" in result) return reject(result.error);
 			const { res } = result;
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
-			if (!isOk(res.statusCode ?? 0)) return reject(toError(res));
-			waitForResponseEnd(res, (data) => resolve(data.toString()));
+			if (!isOk(res.statusCode ?? 0)) {
+				const d: Buffer[] = [];
+				res.on("data", (dt) => d.push(dt));
+				res.on("end", () => {
+					logger.error("ERROR", Buffer.concat(d).toString());
+					reject(toError(res));
+				});
+			} else {
+				waitForResponseEnd(res, (data) => resolve(data.toString()));
+			}
 		});
 	});
 }
@@ -87,6 +99,7 @@ export function followRedirects(
 		if (redirectCodes.includes(res.statusCode ?? 0)) {
 			if (count > 10) return cb({ error: "Too many redirects for " + uri });
 			const location = res.headers.location;
+			console.log(res.headers);
 			if (!location) return cb({ error: "Redirect, but missing location header" });
 			return followRedirects(location, headers, allowInsecure, cb, count + 1);
 		}

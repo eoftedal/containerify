@@ -1,6 +1,6 @@
 {
 	"name": "containerify",
-	"version": "3.1.1",
+	"version": "3.1.2",
 	"description": "Build node.js docker images without docker",
 	"main": "./lib/cli.js",
 	"scripts": {
