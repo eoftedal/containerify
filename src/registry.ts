@@ -129,9 +129,9 @@ function uploadContent(
 		const headers: OutgoingHttpHeaders = {
 			"content-length": fileConfig.size,
 			"content-type": contentType,
-		}
-		if (auth) headers.authorization = auth
-		const options = createHttpOptions("PUT", url, headers)
+		};
+		if (auth) headers.authorization = auth;
+		const options = createHttpOptions("PUT", url, headers);
 		logger.debug(options.method, url);
 		const req = request(options, allowInsecure, (res) => {
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
@@ -160,9 +160,10 @@ async function processToken(
 ): Promise<string> {
 	const { hostname } = URL.parse(registryBaseUrl);
 	const image = parseImage(imagePath);
-	if (hostname?.endsWith(".docker.io") && !token) return getDockerToken(image.path, allowInsecure)
+	if (hostname?.endsWith(".docker.io") && !token) return getDockerToken(image.path, allowInsecure);
 	if (!token) return ""; //We allow to pull from tokenless registries
-	if (hostname?.endsWith(".gitlab.com") && token.startsWith("Basic ")) return getGitLabToken(token, image.path, allowInsecure)
+	if (hostname?.endsWith(".gitlab.com") && token.startsWith("Basic "))
+		return getGitLabToken(token, image.path, allowInsecure);
 	if (token.startsWith("Basic ")) return token;
 	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
 	return "Bearer " + token;
@@ -179,7 +180,7 @@ async function getDockerToken(imagePath: string, allowInsecure: InsecureRegistry
 
 async function getGitLabToken(token: string, imagePath: string, allowInsecure: InsecureRegistrySupport) {
 	if (token.includes(":")) {
-		token = "Basic " + Buffer.from(token?.replace("Basic ", "")).toString("base64");
+		token = "Basic " + Buffer.from(token.replace("Basic ", "")).toString("base64");
 	}
 	const resp = await dlJson<{ token: string }>(
 		`https://gitlab.com/jwt/auth?service=container_registry&scope=repository:${imagePath}:pull,push`,
