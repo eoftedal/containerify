@@ -1,6 +1,9 @@
 name: Linting and type checking and testing
 
-on: push
+on:
+  push:
+  schedule:
+    - cron: "0 2 * * *"
 
 jobs:
   build:
