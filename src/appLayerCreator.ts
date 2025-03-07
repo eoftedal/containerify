@@ -71,8 +71,8 @@ function calculateHash(path: string): Promise<string> {
 	});
 }
 
-function copySync(src: string, dest: string) {
-	const copyOptions = { overwrite: true, dereference: true };
+function copySync(src: string, dest: string, preserveTimestamps: boolean) {
+	const copyOptions = { overwrite: true, dereference: true, preserveTimestamps: preserveTimestamps};
 	const destFolder = dest.substring(0, dest.lastIndexOf("/"));
 	logger.debug("Copying " + src + " to " + dest);
 	fse.ensureDirSync(destFolder);
@@ -116,9 +116,9 @@ async function addDataLayer(
 	const buildDir = await fileutil.ensureEmptyDir(path.join(tmpdir, "build"));
 	files.map((f) => {
 		if (Array.isArray(f)) {
-			copySync(path.join(options.folder, f[0]), path.join(buildDir, f[1]));
+			copySync(path.join(options.folder, f[0]), path.join(buildDir, f[1]), !!options.preserveTimeStamp);
 		} else {
-			copySync(path.join(options.folder, f), path.join(buildDir, options.workdir, f));
+			copySync(path.join(options.folder, f), path.join(buildDir, options.workdir, f), !!options.preserveTimeStamp);
 		}
 	});
 	const layerFile = path.join(todir, "layer.tar.gz");
@@ -141,7 +141,7 @@ async function addDataLayer(
 				cwd: buildDir,
 				file: layerFile,
 				gzip: true,
-				noMtime: !options.setTimeStamp,
+				noMtime: !(options.setTimeStamp || options.preserveTimeStamp),
 				...(options.setTimeStamp ? { mtime: new Date(options.setTimeStamp) } : {}),
 			},
 		},

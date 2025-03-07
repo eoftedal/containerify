@@ -88,6 +88,7 @@ export type Options = {
 	entrypoint: string;
 	labels: Record<string, string>;
 	envs: string[];
+	preserveTimeStamp?: boolean;
 	setTimeStamp?: string;
 	verbose?: boolean;
 	allowInsecureRegistries?: boolean;

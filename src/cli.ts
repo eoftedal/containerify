@@ -48,6 +48,7 @@ const possibleArgs = {
 	"--label <label>": "Optional: Single label (name=value). This option can be used multiple times.",
 	"--envs <envs>": "Optional: Comma-separated list of key value pairs to use av environment variables.",
 	"--env <env>": "Optional: Single environment variable (name=value). This option can be used multiple times.",
+	"--preserveTimeStamp": "Optional: Preserve timestamps on files in the added layers. This might help with cache invalidation.",
 	"--setTimeStamp <timestamp>":
 		"Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config",
 	"--verbose": "Verbose logging",
