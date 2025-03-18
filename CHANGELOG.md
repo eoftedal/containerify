@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.2.0] - 2025-03-07
+
+### Added
+
+- Option to preserve original timestamps
+
 ## [3.1.2] - 2025-02-10
 
 ### Bugfix
