@@ -165,7 +165,8 @@ async function processToken(
 	if (hostname?.endsWith(".gitlab.com") && token.startsWith("Basic "))
 		return getGitLabToken(token, image.path, allowInsecure);
 	if (token.startsWith("Basic ")) return token;
-	if (token.startsWith("ghp_")) return "Bearer " + Buffer.from(token).toString("base64");
+	const githubPrefixes = ["ghp_", "github_pat_", "gho_", "ghu_", "ghs_"];
+	if (githubPrefixes.some((prefix) => token.startsWith(prefix))) return "Bearer " + Buffer.from(token).toString("base64");
 	return "Bearer " + token;
 }
 
