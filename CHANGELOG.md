@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1] - 2025-03-20
+
+### Changed
+
+- Prohibit setting both --setTimeStamp and --preserveTimeStamp
+- Make better use of Commander package
+
 ## [3.2.0] - 2025-03-19
 
 ### Added
