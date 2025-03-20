@@ -74,7 +74,7 @@ function calculateHash(path: string): Promise<string> {
 function copySync(src: string, dest: string, preserveTimestamps: boolean) {
 	const copyOptions = { overwrite: true, dereference: true, preserveTimestamps: preserveTimestamps};
 	const destFolder = dest.substring(0, dest.lastIndexOf("/"));
-	logger.debug("Copying " + src + " to " + dest);
+	logger.debug(`Copying ${src} to ${dest}`);
 	fse.ensureDirSync(destFolder);
 	fse.copySync(src, dest, copyOptions);
 }

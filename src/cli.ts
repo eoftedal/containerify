@@ -184,6 +184,8 @@ function exitWithErrorIf(check: boolean, error: string) {
 
 if (options.verbose) logger.enableDebug();
 
+exitWithErrorIf(!!options.setTimeStamp && !!options.preserveTimeStamp, "Do not set both --preserveTimeStamp and --setTimeStamp");
+
 exitWithErrorIf(!!options.registry && !!options.fromRegistry, "Do not set both --registry and --fromRegistry");
 exitWithErrorIf(!!options.from && !!options.fromRegistry, "Do not set both --from and --fromRegistry");
 exitWithErrorIf(!!options.registry && !!options.from, "Do not set both --registry and --from");
