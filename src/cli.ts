@@ -91,19 +91,20 @@ Object.keys(configFromFile).forEach((k) => {
 });
 
 const labelsOpt: Record<string, string> = {};
-cliOptions.labels?.forEach((x: string) => setKeyValue(labelsOpt, x));
+cliOptions.labels?.forEach((labels: string) => labels.split(",").forEach((label: string) => setKeyValue(labelsOpt, label)));
 const labels = { ...configFromFile.labels, ...labelsOpt }; //Let cli arguments override file
 
 const envOpt: Record<string, string> = {};
-cliOptions.envs?.forEach((x: string) => setKeyValue(envOpt, x));
+cliOptions.envs?.forEach((envs: string) => envs.split(",").forEach((env: string) => setKeyValue(envOpt, env)));
 const envs = { ...configFromFile.envs, ...envOpt }; //Let cli arguments override file
+console.log(envs)
 
 const customContent: Record<string, string> = {};
 configFromFile.customContent?.forEach((c: string) => setKeyValue(customContent, c, ":", c));
-cliOptions.customContent?.forEach((c: string) => setKeyValue(customContent, c, ":", c));
+cliOptions.customContent?.forEach((contents: string) => contents.split(",").forEach((content: string) => setKeyValue(customContent, content, ":", content)));
 
 const cliExtraContent: Record<string, string> = {};
-cliOptions.extraContent?.forEach((x: string) => setKeyValue(cliExtraContent, x, ":"));
+cliOptions.extraContent?.forEach((extras: string) => extras.split(",").forEach((extra: string) => setKeyValue(cliExtraContent, extra, ":")));
 
 const extraContent = { ...configFromFile.extraContent, ...cliExtraContent };
 
@@ -277,7 +278,7 @@ async function run(options: Options) {
 		);
 		await toRegistry.upload(options.toImage, todir, options.doCrossMount, originalManifest, options.fromImage);
 	}
-	logger.debug("Deleting " + tmpdir + " ...");
+	logger.debug(`Deleting ${tmpdir} ...`);
 	await fse.remove(tmpdir);
 	logger.debug("Done");
 }
@@ -291,5 +292,5 @@ run(options as Options)
 	})
 	.catch((error) => {
 		logger.error(error);
-		process.exit(1)
+		process.exit(1);
 	});
