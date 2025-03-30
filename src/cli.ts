@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import * as os from "os";
-import { program } from "commander";
+import { Command } from "commander";
 import * as path from "path";
 import * as fse from "fs-extra";
 import * as fs from "fs";
@@ -17,82 +17,54 @@ import { omit, getPreferredPlatform } from "./utils";
 import { ensureEmptyDir } from "./fileutil";
 import { VERSION } from "./version";
 
-const possibleArgs = {
-	"--from <registry/image:tag>": "Optional: Shorthand to specify fromRegistry and fromImage in one argument",
-	"--to <registry/image:tag>": "Optional: Shorthand to specify toRegistry and toImage in one argument",
-	"--fromImage <name:tag>": "Required: Image name of base image - [path/]image:tag",
-	"--toImage <name:tag>": "Required: Image name of target image - [path/]image:tag",
-	"--folder <full path>": "Required: Base folder of node application (contains package.json)",
-	"--file <path>": "Optional: Name of configuration file (defaults to containerify.json if found on path)",
-	"--doCrossMount":
-		"Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)",
-	"--fromRegistry <registry url>":
-		"Optional: URL of registry to pull base image from - Default: https://registry-1.docker.io/v2/",
-	"--fromToken <token>": "Optional: Authentication token for from registry",
-	"--toRegistry <registry url>":
-		"Optional: URL of registry to push base image to - Default: https://registry-1.docker.io/v2/",
-	"--optimisticToRegistryCheck":
-		"Treat redirects as layer existing in remote registry. Potentially unsafe, but can save bandwidth.",
-	"--toToken <token>": "Optional: Authentication token for target registry",
-	"--toTar <path>": "Optional: Export to tar file",
-	"--toDocker": "Optional: Export to local docker registry",
-	"--registry <path>": "Optional: Convenience argument for setting both from and to registry",
-	"--platform <platform>": "Optional: Preferred platform, e.g. linux/amd64 or arm64",
-	"--token <path>": "Optional: Convenience argument for setting token for both from and to registry",
-	"--user <user>": "Optional: User account to run process in container - default: 1000 (empty for customContent)",
-	"--workdir <directory>":
-		"Optional: Workdir where node app will be added and run from - default: /app (empty for customContent)",
-	"--entrypoint <entrypoint>":
-		"Optional: Entrypoint when starting container - default: npm start (empty for customContent)",
-	"--labels <labels>": "Optional: Comma-separated list of key value pairs to use as labels",
-	"--label <label>": "Optional: Single label (name=value). This option can be used multiple times.",
-	"--envs <envs>": "Optional: Comma-separated list of key value pairs to use av environment variables.",
-	"--env <env>": "Optional: Single environment variable (name=value). This option can be used multiple times.",
-	"--preserveTimeStamp": "Optional: Preserve timestamps on files in the added layers. This might help with cache invalidation.",
-	"--setTimeStamp <timestamp>":
-		"Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config",
-	"--verbose": "Verbose logging",
-	"--allowInsecureRegistries": "Allow insecure registries (with self-signed/untrusted cert)",
-	"--allowNoPushAuth": "Allow pushing images without a authentication/token to registries that allow it",
-	"--customContent <dirs/files>":
-		"Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as local-path:absolute-container-path if you want to place it in a specific location",
-	"--extraContent <dirs/files>":
-		"Optional: Add specific content. Specify as local-path:absolute-container-path,local-path2:absolute-container-path2 etc",
-	"--layerOwner <gid:uid>": "Optional: Set specific gid and uid on files in the added layers",
-	"--buildFolder <path>": "Optional: Use a specific build folder when creating the image",
-	"--layerCacheFolder <path>": "Optional: Folder to cache base layers between builds",
-	"--version": "Get containerify version",
-} as const;
+const program = new Command();
+
+program
+	.name("containerify")
+	.description("A CLI-tool for creating container images.")
+	.option("--from <registry/image:tag>", "Optional: Shorthand to specify fromRegistry and fromImage in one argument")
+	.option("--to <registry/image:tag>", "Optional: Shorthand to specify toRegistry and toImage in one argument")
+	.option("--fromImage <name:tag>", "Required: Image name of base image - [path/]image:tag")
+	.option("--toImage <name:tag>", "Required: Image name of target image - [path/]image:tag")
+	.option("--folder <full path>", "Required: Base folder of node application (contains package.json)")
+	.option("--file <path>", "Optional: Name of configuration file (defaults to containerify.json if found on path)")
+	.option("--doCrossMount", "Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default, false)")
+	.option("--fromRegistry <registry url>", "Optional: URL of registry to pull base image from - Default, https,//registry-1.docker.io/v2/")
+	.option("--fromToken <token>", "Optional: Authentication token for from registry")
+	.option("--toRegistry <registry url>", "Optional: URL of registry to push base image to - Default, https,//registry-1.docker.io/v2/")
+	.option("--optimisticToRegistryCheck", "Treat redirects as layer existing in remote registry. Potentially unsafe) but can save bandwidth.")
+	.option("--toToken <token>", "Optional: Authentication token for target registry")
+	.option("--toTar <path>", "Optional: Export to tar file")
+	.option("--toDocker", "Optional: Export to local docker registry")
+	.option("--registry <path>", "Optional: Convenience argument for setting both from and to registry")
+	.option("--platform <platform>", "Optional: Preferred platform) e.g. linux/amd64 or arm64")
+	.option("--token <path>", "Optional: Convenience argument for setting token for both from and to registry")
+	.option("--user <user>", "Optional: User account to run process in container - default, 1000 (empty for customContent)")
+	.option("--workdir <directory>", "Optional: Workdir where node app will be added and run from - default, /app (empty for customContent)")
+	.option("--entrypoint <entrypoint>", "Optional: Entrypoint when starting container - default, npm start (empty for customContent)")
+	.option("--label, --labels <labels...>", "Optional: Comma-separated list of key value pairs to use as labels")
+	.option("--env, --envs <envs...>", "Optional: Comma-separated list of key value pairs to use av environment variables.")
+	.option("--preserveTimeStamp", "Optional: Preserve timestamps on files in the added layers. This might help with cache invalidation.")
+	.option("--setTimeStamp <timestamp>", "Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default, 1970 in tar files) and current time on manifest/config")
+	.option("--verbose", "Verbose logging")
+	.option("--allowInsecureRegistries", "Allow insecure registries (with self-signed/untrusted cert)")
+	.option("--allowNoPushAuth", "Allow pushing images without a authentication/token to registries that allow it")
+	.option("--customContent <dirs/files...>", "Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as local-path,absolute-container-path if you want to place it in a specific location")
+	.option("--extraContent <dirs/files...>", "Optional: Add specific content. Specify as local-path,absolute-container-path)local-path2,absolute-container-path2 etc")
+	.option("--layerOwner <gid:uid>", "Optional: Set specific gid and uid on files in the added layers")
+	.option("--buildFolder <path>", "Optional: Use a specific build folder when creating the image")
+	.option("--layerCacheFolder <path>", "Optional: Folder to cache base layers between builds")
+	.version(VERSION, "--version", "Get containerify version")
+
+program.parse(process.argv);
 
 function setKeyValue(target: Record<string, string>, keyValue: string, separator = "=", defaultValue?: string) {
 	const [k, v] = keyValue.split(separator, 2);
 	target[k.trim()] = v?.trim() ?? defaultValue;
 }
 
-const cliLabels: Record<string, string> = {};
-program.on("option:label", (ops: string) => {
-	setKeyValue(cliLabels, ops);
-});
-
-const cliEnv: Record<string, string> = {};
-program.on("option:env", (ops: string) => {
-	setKeyValue(cliEnv, ops);
-});
-
-const cliOptions = Object.entries(possibleArgs)
-	.reduce((program, [k, v]) => {
-		program.option(k, v);
-		return program;
-	}, program)
-	.parse()
-	.opts();
-
-if (cliOptions.version) {
-	console.log(`containerify v${VERSION}`);
-	process.exit(0);
-}
-
-const keys = Object.keys(possibleArgs).map((k) => k.split(" ")[0].replace("--", ""));
+const cliOptions = program.opts();
+const keys = program.options.map((x) => x.long?.replace("--", ""))
 
 const defaultOptions = {
 	workdir: "/app",
@@ -119,31 +91,20 @@ Object.keys(configFromFile).forEach((k) => {
 });
 
 const labelsOpt: Record<string, string> = {};
-cliOptions.labels?.split(",")?.forEach((x: string) => setKeyValue(labelsOpt, x));
-Object.keys(labelsOpt)
-	.filter((l) => Object.keys(cliLabels).includes(l))
-	.forEach((l) => {
-		exitWithErrorIf(true, `Label ${l} specified both with --labels and --label`);
-	});
-
-const labels = { ...configFromFile.labels, ...labelsOpt, ...cliLabels }; //Let cli arguments override file
+cliOptions.labels?.forEach((labels: string) => labels.split(",").forEach((label: string) => setKeyValue(labelsOpt, label)));
+const labels = { ...configFromFile.labels, ...labelsOpt }; //Let cli arguments override file
 
 const envOpt: Record<string, string> = {};
-cliOptions.envs?.split(",")?.forEach((x: string) => setKeyValue(envOpt, x));
-Object.keys(envOpt)
-	.filter((l) => Object.keys(cliEnv).includes(l))
-	.forEach((l) => {
-		exitWithErrorIf(true, `Env ${l} specified both with --envs and --env`);
-	});
-
-const envs = { ...configFromFile.envs, ...envOpt, ...cliEnv }; //Let cli arguments override file
+cliOptions.envs?.forEach((envs: string) => envs.split(",").forEach((env: string) => setKeyValue(envOpt, env)));
+const envs = { ...configFromFile.envs, ...envOpt }; //Let cli arguments override file
+console.log(envs)
 
 const customContent: Record<string, string> = {};
 configFromFile.customContent?.forEach((c: string) => setKeyValue(customContent, c, ":", c));
-cliOptions.customContent?.split(",").forEach((c: string) => setKeyValue(customContent, c, ":", c));
+cliOptions.customContent?.forEach((contents: string) => contents.split(",").forEach((content: string) => setKeyValue(customContent, content, ":", content)));
 
 const cliExtraContent: Record<string, string> = {};
-cliOptions.extraContent?.split(",").forEach((x: string) => setKeyValue(cliExtraContent, x, ":"));
+cliOptions.extraContent?.forEach((extras: string) => extras.split(",").forEach((extra: string) => setKeyValue(cliExtraContent, extra, ":")));
 
 const extraContent = { ...configFromFile.extraContent, ...cliExtraContent };
 
@@ -183,6 +144,8 @@ function exitWithErrorIf(check: boolean, error: string) {
 }
 
 if (options.verbose) logger.enableDebug();
+
+exitWithErrorIf(!!options.setTimeStamp && !!options.preserveTimeStamp, "Do not set both --preserveTimeStamp and --setTimeStamp");
 
 exitWithErrorIf(!!options.registry && !!options.fromRegistry, "Do not set both --registry and --fromRegistry");
 exitWithErrorIf(!!options.from && !!options.fromRegistry, "Do not set both --from and --fromRegistry");
@@ -254,7 +217,7 @@ if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/"))
 }
 
 Object.keys(options.customContent).forEach((p) => {
-	exitWithErrorIf(!fs.existsSync(p), "Could not find " + p + " in the base folder " + options.folder);
+	exitWithErrorIf(!fs.existsSync(p), `Could not find ${p} in the base folder ${options.folder}`);
 });
 
 if (options.layerCacheFolder) {
@@ -263,7 +226,7 @@ if (options.layerCacheFolder) {
 			logger.info(`Layer cache folder does not exist. Creating ${options.layerCacheFolder} ...`);
 			fs.mkdirSync(options.layerCacheFolder, { recursive: true });
 		} catch (e) {
-			exitWithErrorIf(true, "Failed to create layer cache folder");
+			exitWithErrorIf(true, `Failed to create layer cache folder ${e}`);
 		}
 	}
 	if (!options.layerCacheFolder.endsWith("/")) {
@@ -272,11 +235,11 @@ if (options.layerCacheFolder) {
 }
 
 Object.keys(options.extraContent).forEach((k) => {
-	exitWithErrorIf(!fs.existsSync(options.folder + k), "Could not find `" + k + "` in the folder " + options.folder);
+	exitWithErrorIf(!fs.existsSync(options.folder + k), `Could not find '${k}' in the folder ${options.folder}`);
 });
 
 async function run(options: Options) {
-	if (!(await fse.pathExists(options.folder))) throw new Error("No such folder: " + options.folder);
+	if (!(await fse.pathExists(options.folder))) throw new Error(`No such folder: ${options.folder}`);
 
 	const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "containerify-"));
 	logger.debug("Using " + tmpdir);
@@ -315,7 +278,7 @@ async function run(options: Options) {
 		);
 		await toRegistry.upload(options.toImage, todir, options.doCrossMount, originalManifest, options.fromImage);
 	}
-	logger.debug("Deleting " + tmpdir + " ...");
+	logger.debug(`Deleting ${tmpdir} ...`);
 	await fse.remove(tmpdir);
 	logger.debug("Done");
 }

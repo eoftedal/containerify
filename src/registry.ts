@@ -158,7 +158,7 @@ async function processToken(
 	imagePath: string,
 	token?: string,
 ): Promise<string> {
-	const { hostname } = URL.parse(registryBaseUrl);
+	const { hostname } = new URL.URL(registryBaseUrl);
 	const image = parseImage(imagePath);
 	if (hostname?.endsWith(".docker.io") && !token) return getDockerToken(image.path, allowInsecure);
 	if (!token) return ""; //We allow to pull from tokenless registries
