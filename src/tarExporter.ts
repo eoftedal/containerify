@@ -1,4 +1,4 @@
-import tar = require("tar");
+import * as tar from "tar";
 import { promises as fs } from "fs";
 import * as fse from "fs-extra";
 import * as path from "path";
