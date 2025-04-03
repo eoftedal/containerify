@@ -6,7 +6,7 @@
 	"scripts": {
 		"prebuild": "node -p \"'export const VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
 		"build": "tsc && chmod ugo+x lib/cli.js",
-		"lint": "eslint . --ext .ts --fix --ignore-path .gitignore",
+		"lint": "eslint . --ext .ts --fix",
 		"typecheck": "tsc --noEmit",
 		"watch": "tsc --watch",
 		"check": "npm run lint && npm run typecheck",
@@ -41,6 +41,8 @@
 		"tar": "^6.2.1"
 	},
 	"devDependencies": {
+		"@eslint/eslintrc": "^3.3.1",
+		"@eslint/js": "^9.23.0",
 		"@types/fs-extra": "^11.0.4",
 		"@types/minizlib": "^2.1.7",
 		"@types/node": "^22.13.9",
@@ -49,6 +51,7 @@
 		"@typescript-eslint/parser": "^8.26",
 		"eslint": "^9.21.0",
 		"eslint-config-prettier": "^10.1.1",
+		"globals": "^16.0.0",
 		"prettier": "^3.5.3",
 		"typescript": "^5.8.2"
 	}

@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 async function isAvailable() {
 	try {
 		await execAsync("docker -v");
-	} catch (e) {
+	} catch {
 		return false;
 	}
 	return true;

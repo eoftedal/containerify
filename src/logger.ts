@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+ 
 
 let debugEnabled = false;
 
