@@ -10,26 +10,28 @@ import { FlatCompat } from "@eslint/eslintrc";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
+	baseDirectory: __dirname,
+	recommendedConfig: js.configs.recommended,
+	allConfig: js.configs.all,
 });
 
-export default defineConfig([{
-    extends: compat.extends("eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"),
+export default defineConfig([
+	{
+		extends: compat.extends("eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"),
 
-    plugins: {
-        "@typescript-eslint": typescriptEslint,
-    },
-    ignores: ["tests/integration/app/**"],
+		plugins: {
+			"@typescript-eslint": typescriptEslint,
+		},
+		ignores: ["tests/integration/app/**/*", "lib/**/*", "lib/**/*.ts"],
 
-    languageOptions: {
-        globals: {
-            ...Object.fromEntries(Object.entries(globals.browser).map(([key]) => [key, "off"])),
-        },
+		languageOptions: {
+			globals: {
+				...Object.fromEntries(Object.entries(globals.browser).map(([key]) => [key, "off"])),
+			},
 
-        parser: tsParser,
-        ecmaVersion: "latest",
-        sourceType: "module",
-    },
-}]);
+			parser: tsParser,
+			ecmaVersion: "latest",
+			sourceType: "module",
+		},
+	},
+]);
