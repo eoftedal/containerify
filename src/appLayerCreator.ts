@@ -8,7 +8,7 @@ import { Gunzip } from "minizlib";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
-import { Config, Layer, Manifest, Options } from "./types";
+import { Config, Layer, Manifest, ManifestDescriptor, Options } from "./types";
 import { getManifestLayerType, getLayerTypeFileEnding, unique } from "./utils";
 import { VERSION } from "./version";
 
@@ -72,7 +72,7 @@ function calculateHash(path: string): Promise<string> {
 }
 
 function copySync(src: string, dest: string, preserveTimestamps: boolean) {
-	const copyOptions = { overwrite: true, dereference: true, preserveTimestamps: preserveTimestamps};
+	const copyOptions = { overwrite: true, dereference: true, preserveTimestamps: preserveTimestamps };
 	const destFolder = dest.substring(0, dest.lastIndexOf("/"));
 	logger.debug(`Copying ${src} to ${dest}`);
 	fse.ensureDirSync(destFolder);
@@ -250,7 +250,12 @@ async function addEnvsLayer(options: Options, config: Config) {
 	}
 }
 
-async function addLayers(tmpdir: string, fromdir: string, todir: string, options: Options) {
+async function addLayers(
+	tmpdir: string,
+	fromdir: string,
+	todir: string,
+	options: Options,
+): Promise<ManifestDescriptor> {
 	logger.info("Parsing image ...");
 	const manifest = await fse.readJson(path.join(fromdir, "manifest.json"));
 	const config = await fse.readJson(path.join(fromdir, "config.json"));
@@ -267,7 +272,14 @@ async function addLayers(tmpdir: string, fromdir: string, todir: string, options
 	await fs.writeFile(configFile, configContent);
 	manifest.config.digest = "sha256:" + configHash;
 	manifest.config.size = await fileutil.sizeOf(configFile);
-	await fs.writeFile(path.join(todir, "manifest.json"), JSON.stringify(manifest));
+	const manifestJson = JSON.stringify(manifest);
+	await fs.writeFile(path.join(todir, "manifest.json"), manifestJson);
+	const manifestBuffer = Buffer.from(manifestJson, "utf-8");
+	return {
+		mediaType: manifest.mediaType,
+		digest: calculateHashOfBuffer(manifestBuffer),
+		size: manifestBuffer.byteLength,
+	};
 }
 
 export default {

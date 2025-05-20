@@ -166,7 +166,8 @@ async function processToken(
 		return getGitLabToken(token, image.path, allowInsecure);
 	if (token.startsWith("Basic ")) return token;
 	const githubPrefixes = ["ghp_", "github_pat_", "gho_", "ghu_", "ghs_"];
-	if (githubPrefixes.some((prefix) => token.startsWith(prefix))) return "Bearer " + Buffer.from(token).toString("base64");
+	if (githubPrefixes.some((prefix) => token.startsWith(prefix)))
+		return "Bearer " + Buffer.from(token).toString("base64");
 	return "Bearer " + token;
 }
 
@@ -416,6 +417,7 @@ export async function createRegistry(
 
 		logger.info("Downloading manifest...");
 		const manifest = await dlManifest(image, preferredPlatform, allowInsecure);
+
 		await fs.writeFile(path.join(folder, "manifest.json"), JSON.stringify(manifest));
 
 		logger.info("Downloading config...");

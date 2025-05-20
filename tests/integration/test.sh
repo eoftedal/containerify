@@ -14,19 +14,32 @@ mkdir -p tmp/layercache
 
 echo "Building image 1..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v1.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose  >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v1.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose  --writeDigestTo tmp/digest1 >/dev/null
+
+cat tmp/digest1
+echo ""
+echo ""
 
 echo "Building image 2..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v2.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v2.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose --writeDigestTo tmp/digest2 >/dev/null
+cat tmp/digest2
+echo ""
+echo ""
 
 echo "Building image 3..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder . --toTar tmp/v3.tar --customContent customContent --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache > /dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder . --toTar tmp/v3.tar --customContent customContent --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --writeDigestTo tmp/digest3 > /dev/null
+cat tmp/digest3
+echo ""
+echo ""
 
 echo "Building image 4..."
+../../lib/cli.js --file ./file/containerify.json --toTar tmp/v4.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --writeDigestTo tmp/digest4 > /dev/null
+cat tmp/digest4
+echo ""
+echo ""
 
-../../lib/cli.js --file ./file/containerify.json --toTar tmp/v4.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache > /dev/null
 
 echo "Untaring content ..."
 tar -xf tmp/v1.tar -C tmp/v1/content/

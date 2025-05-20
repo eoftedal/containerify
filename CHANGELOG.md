@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.3.1] - 2025-03-20
+
+### Added
+
+- Support for --writeDigestTo to write the final digest to given file
+
 ## [3.2.1] - 2025-03-20
 
 ### Changed

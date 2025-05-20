@@ -28,33 +28,70 @@ program
 	.option("--toImage <name:tag>", "Required: Image name of target image - [path/]image:tag")
 	.option("--folder <full path>", "Required: Base folder of node application (contains package.json)")
 	.option("--file <path>", "Optional: Name of configuration file (defaults to containerify.json if found on path)")
-	.option("--doCrossMount", "Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default, false)")
-	.option("--fromRegistry <registry url>", "Optional: URL of registry to pull base image from - Default, https,//registry-1.docker.io/v2/")
+	.option(
+		"--doCrossMount",
+		"Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default, false)",
+	)
+	.option(
+		"--fromRegistry <registry url>",
+		"Optional: URL of registry to pull base image from - Default, https,//registry-1.docker.io/v2/",
+	)
 	.option("--fromToken <token>", "Optional: Authentication token for from registry")
-	.option("--toRegistry <registry url>", "Optional: URL of registry to push base image to - Default, https,//registry-1.docker.io/v2/")
-	.option("--optimisticToRegistryCheck", "Treat redirects as layer existing in remote registry. Potentially unsafe) but can save bandwidth.")
+	.option(
+		"--toRegistry <registry url>",
+		"Optional: URL of registry to push base image to - Default, https,//registry-1.docker.io/v2/",
+	)
+	.option(
+		"--optimisticToRegistryCheck",
+		"Treat redirects as layer existing in remote registry. Potentially unsafe) but can save bandwidth.",
+	)
 	.option("--toToken <token>", "Optional: Authentication token for target registry")
 	.option("--toTar <path>", "Optional: Export to tar file")
 	.option("--toDocker", "Optional: Export to local docker registry")
 	.option("--registry <path>", "Optional: Convenience argument for setting both from and to registry")
 	.option("--platform <platform>", "Optional: Preferred platform) e.g. linux/amd64 or arm64")
 	.option("--token <path>", "Optional: Convenience argument for setting token for both from and to registry")
-	.option("--user <user>", "Optional: User account to run process in container - default, 1000 (empty for customContent)")
-	.option("--workdir <directory>", "Optional: Workdir where node app will be added and run from - default, /app (empty for customContent)")
-	.option("--entrypoint <entrypoint>", "Optional: Entrypoint when starting container - default, npm start (empty for customContent)")
+	.option(
+		"--user <user>",
+		"Optional: User account to run process in container - default, 1000 (empty for customContent)",
+	)
+	.option(
+		"--workdir <directory>",
+		"Optional: Workdir where node app will be added and run from - default, /app (empty for customContent)",
+	)
+	.option(
+		"--entrypoint <entrypoint>",
+		"Optional: Entrypoint when starting container - default, npm start (empty for customContent)",
+	)
 	.option("--label, --labels <labels...>", "Optional: Comma-separated list of key value pairs to use as labels")
-	.option("--env, --envs <envs...>", "Optional: Comma-separated list of key value pairs to use av environment variables.")
-	.option("--preserveTimeStamp", "Optional: Preserve timestamps on files in the added layers. This might help with cache invalidation.")
-	.option("--setTimeStamp <timestamp>", "Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default, 1970 in tar files) and current time on manifest/config")
+	.option(
+		"--env, --envs <envs...>",
+		"Optional: Comma-separated list of key value pairs to use av environment variables.",
+	)
+	.option(
+		"--preserveTimeStamp",
+		"Optional: Preserve timestamps on files in the added layers. This might help with cache invalidation.",
+	)
+	.option(
+		"--setTimeStamp <timestamp>",
+		"Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default, 1970 in tar files) and current time on manifest/config",
+	)
 	.option("--verbose", "Verbose logging")
 	.option("--allowInsecureRegistries", "Allow insecure registries (with self-signed/untrusted cert)")
 	.option("--allowNoPushAuth", "Allow pushing images without a authentication/token to registries that allow it")
-	.option("--customContent <dirs/files...>", "Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as local-path,absolute-container-path if you want to place it in a specific location")
-	.option("--extraContent <dirs/files...>", "Optional: Add specific content. Specify as local-path,absolute-container-path)local-path2,absolute-container-path2 etc")
+	.option(
+		"--customContent <dirs/files...>",
+		"Optional: Skip normal node_modules and applayer and include specified root folder files/directories instead. You can specify as local-path,absolute-container-path if you want to place it in a specific location",
+	)
+	.option(
+		"--extraContent <dirs/files...>",
+		"Optional: Add specific content. Specify as local-path,absolute-container-path)local-path2,absolute-container-path2 etc",
+	)
 	.option("--layerOwner <gid:uid>", "Optional: Set specific gid and uid on files in the added layers")
 	.option("--buildFolder <path>", "Optional: Use a specific build folder when creating the image")
 	.option("--layerCacheFolder <path>", "Optional: Folder to cache base layers between builds")
-	.version(VERSION, "--version", "Get containerify version")
+	.option("--writeDigestTo <path>", "Optional: Write the resulting image digest to the file path provided")
+	.version(VERSION, "--version", "Get containerify version");
 
 program.parse(process.argv);
 
@@ -64,7 +101,7 @@ function setKeyValue(target: Record<string, string>, keyValue: string, separator
 }
 
 const cliOptions = program.opts();
-const keys = program.options.map((x) => x.long?.replace("--", ""))
+const keys = program.options.map((x) => x.long?.replace("--", ""));
 
 const defaultOptions = {
 	workdir: "/app",
@@ -91,20 +128,25 @@ Object.keys(configFromFile).forEach((k) => {
 });
 
 const labelsOpt: Record<string, string> = {};
-cliOptions.labels?.forEach((labels: string) => labels.split(",").forEach((label: string) => setKeyValue(labelsOpt, label)));
+cliOptions.labels?.forEach((labels: string) =>
+	labels.split(",").forEach((label: string) => setKeyValue(labelsOpt, label)),
+);
 const labels = { ...configFromFile.labels, ...labelsOpt }; //Let cli arguments override file
 
 const envOpt: Record<string, string> = {};
 cliOptions.envs?.forEach((envs: string) => envs.split(",").forEach((env: string) => setKeyValue(envOpt, env)));
 const envs = { ...configFromFile.envs, ...envOpt }; //Let cli arguments override file
-console.log(envs)
 
 const customContent: Record<string, string> = {};
 configFromFile.customContent?.forEach((c: string) => setKeyValue(customContent, c, ":", c));
-cliOptions.customContent?.forEach((contents: string) => contents.split(",").forEach((content: string) => setKeyValue(customContent, content, ":", content)));
+cliOptions.customContent?.forEach((contents: string) =>
+	contents.split(",").forEach((content: string) => setKeyValue(customContent, content, ":", content)),
+);
 
 const cliExtraContent: Record<string, string> = {};
-cliOptions.extraContent?.forEach((extras: string) => extras.split(",").forEach((extra: string) => setKeyValue(cliExtraContent, extra, ":")));
+cliOptions.extraContent?.forEach((extras: string) =>
+	extras.split(",").forEach((extra: string) => setKeyValue(cliExtraContent, extra, ":")),
+);
 
 const extraContent = { ...configFromFile.extraContent, ...cliExtraContent };
 
@@ -134,6 +176,7 @@ const options: Options = {
 		workdir: setOptions.workdir,
 		entrypoint: setOptions.entrypoint,
 	},
+	writeDigestTo: cliOptions.writeDigestTo,
 };
 
 function exitWithErrorIf(check: boolean, error: string) {
@@ -145,7 +188,10 @@ function exitWithErrorIf(check: boolean, error: string) {
 
 if (options.verbose) logger.enableDebug();
 
-exitWithErrorIf(!!options.setTimeStamp && !!options.preserveTimeStamp, "Do not set both --preserveTimeStamp and --setTimeStamp");
+exitWithErrorIf(
+	!!options.setTimeStamp && !!options.preserveTimeStamp,
+	"Do not set both --preserveTimeStamp and --setTimeStamp",
+);
 
 exitWithErrorIf(!!options.registry && !!options.fromRegistry, "Do not set both --registry and --fromRegistry");
 exitWithErrorIf(!!options.from && !!options.fromRegistry, "Do not set both --from and --fromRegistry");
@@ -207,7 +253,10 @@ exitWithErrorIf(
 	!options.toRegistry && !options.toTar && !options.toDocker,
 	"Must specify either --toTar, --toRegistry or --toDocker",
 );
-exitWithErrorIf(!!options.toRegistry && !options.toToken && !options.allowNoPushAuth, "A token must be provided when uploading images");
+exitWithErrorIf(
+	!!options.toRegistry && !options.toToken && !options.allowNoPushAuth,
+	"A token must be provided when uploading images",
+);
 
 if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
 if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
@@ -255,7 +304,7 @@ async function run(options: Options) {
 		options.layerCacheFolder,
 	);
 
-	await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
+	const manifestDescriptor = await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
 	if (options.toDocker) {
 		if (!(await dockerExporter.isAvailable())) {
@@ -281,6 +330,10 @@ async function run(options: Options) {
 	logger.debug(`Deleting ${tmpdir} ...`);
 	await fse.remove(tmpdir);
 	logger.debug("Done");
+	if (options.writeDigestTo) {
+		logger.debug(`Writing digest ${manifestDescriptor.digest} to ${options.writeDigestTo}`);
+		fs.writeFileSync(options.writeDigestTo, manifestDescriptor.digest);
+	}
 }
 
 logger.debug("Running with config:", options);

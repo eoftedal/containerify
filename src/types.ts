@@ -103,6 +103,7 @@ export type Options = {
 		workdir?: string;
 		entrypoint?: string;
 	};
+	writeDigestTo?: string;
 };
 
 export enum InsecureRegistrySupport {
@@ -120,3 +121,5 @@ export type Registry = {
 	) => Promise<void>;
 	registryBaseUrl: string;
 };
+
+export type ManifestDescriptor = Descriptor;

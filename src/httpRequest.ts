@@ -99,7 +99,6 @@ export function followRedirects(
 		if (redirectCodes.includes(res.statusCode ?? 0)) {
 			if (count > 10) return cb({ error: "Too many redirects for " + uri });
 			const location = res.headers.location;
-			console.log(res.headers);
 			if (!location) return cb({ error: "Redirect, but missing location header" });
 			return followRedirects(location, headers, allowInsecure, cb, count + 1);
 		}
