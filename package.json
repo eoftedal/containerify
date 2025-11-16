@@ -37,7 +37,7 @@
 	],
 	"dependencies": {
 		"commander": "^13.1.0",
-		"fs-extra": "^11.3.0",
+		"fs-extra": "^11.3.2",
 		"tar": "^6.2.1"
 	},
 	"devDependencies": {
