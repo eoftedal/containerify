@@ -38,7 +38,7 @@
 	"dependencies": {
 		"commander": "^13.1.0",
 		"fs-extra": "^11.3.2",
-		"tar": "^6.2.1"
+		"tar": "^7.5.3"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.1",
