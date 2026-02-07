@@ -21,8 +21,8 @@ function createOnWriteEntry(layerOwner?: string) {
 	if (!layerOwner) return undefined;
 	// We use onWriteEntry to overwrite uid and gid in the tar archive
 	const a = layerOwner.split(":");
-	const gid = parseInt(a[0]);
-	const uid = parseInt(a[1]);
+	const gid = parseInt(a[0], 10);
+	const uid = parseInt(a[1], 10);
 	return (entry: WriteEntry) => {
 		if (entry.header) {
 			entry.header.uid = uid;
