@@ -30,6 +30,10 @@ function createOnWriteEntry(layerOwner?: string) {
 			entry.header.gid = gid;
 			entry.header.uname = "";
 			entry.header.gname = "";
+			// Set all timestamps to epoch to match original behavior
+			entry.header.atime = new Date(0);
+			entry.header.mtime = new Date(0);
+			entry.header.ctime = new Date(0);
 		}
 	};
 }
