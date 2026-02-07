@@ -1,4 +1,5 @@
 import * as tar from "tar";
+import type { WriteEntry } from "tar";
 import { promises as fs } from "fs";
 import * as fse from "fs-extra";
 import * as fss from "fs";
@@ -16,37 +17,24 @@ const depLayerPossibles = ["package.json", "package-lock.json", "node_modules"];
 
 const ignore = [".git", ".gitignore", ".npmrc", ".DS_Store", "npm-debug.log", ".svn", ".hg", "CVS"];
 
-function statCache(layerOwner?: string) {
-	if (!layerOwner) return null;
-	// We use the stat cache to overwrite uid and gid in image.
-	// A bit hacky
-	const statCacheMap = new Map();
-	const a = layerOwner.split(":");
-	const gid = parseInt(a[0]);
-	const uid = parseInt(a[1]);
-	return {
-		get: function (name: string) {
-			if (statCacheMap.has(name)) return statCacheMap.get(name);
-			const stat = fss.statSync(name);
-			stat.uid = uid;
-			stat.gid = gid;
-			stat.atime = new Date(0);
-			stat.mtime = new Date(0);
-			stat.ctime = new Date(0);
-			stat.birthtime = new Date(0);
-			stat.atimeMs = 0;
-			stat.mtimeMs = 0;
-			stat.ctimeMs = 0;
-			stat.birthtimeMs = 0;
-			statCacheMap.set(name, stat);
-			return stat;
-		},
-		set: function (name: string, stat: ReturnType<(typeof fss)["statSync"]>) {
-			statCacheMap.set(name, stat);
-		},
-		has: function () {
-			return true;
-		},
+function createOnWriteEntry(layerOwner?: string) {
+	if (!layerOwner) return undefined;
+	// We use onWriteEntry to overwrite uid and gid in the tar archive
+	// Format is already validated in cli.ts to be "gid:uid"
+	const parts = layerOwner.split(":");
+	const gid = parseInt(parts[0], 10);
+	const uid = parseInt(parts[1], 10);
+	return (entry: WriteEntry) => {
+		if (entry.header) {
+			entry.header.uid = uid;
+			entry.header.gid = gid;
+			entry.header.uname = "";
+			entry.header.gname = "";
+			// Set all timestamps to epoch to match original behavior
+			entry.header.atime = new Date(0);
+			entry.header.mtime = new Date(0);
+			entry.header.ctime = new Date(0);
+		}
 	};
 }
 
@@ -135,7 +123,7 @@ async function addDataLayer(
 		{
 			...tarDefaultConfig,
 			...{
-				statCache: statCache(options.layerOwner),
+				onWriteEntry: createOnWriteEntry(options.layerOwner),
 				portable: !options.layerOwner,
 				prefix: "/",
 				cwd: buildDir,
