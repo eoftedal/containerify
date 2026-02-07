@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.3.2] - 2026-02-07
+
+### Chore
+
+- Update dependencies
+
 ## [3.3.1] - 2025-03-20
 
 ### Added

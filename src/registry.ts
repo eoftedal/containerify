@@ -1,5 +1,4 @@
 import * as https from "https";
-import * as URL from "url";
 import * as fss from "fs";
 import { promises as fs } from "fs";
 import * as path from "path";
@@ -158,7 +157,7 @@ async function processToken(
 	imagePath: string,
 	token?: string,
 ): Promise<string> {
-	const { hostname } = new URL.URL(registryBaseUrl);
+	const { hostname } = new URL(registryBaseUrl);
 	const image = parseImage(imagePath);
 	if (hostname?.endsWith(".docker.io") && !token) return getDockerToken(image.path, allowInsecure);
 	if (!token) return ""; //We allow to pull from tokenless registries
@@ -228,8 +227,14 @@ export async function createRegistry(
 		return new Promise((resolve, reject) => {
 			const parameters = new URLSearchParams(mountParameters);
 			const url = `${registryBaseUrl}${image.path}/blobs/uploads/${parameters.size > 0 ? "?" + parameters : ""}`;
-			const options: https.RequestOptions = URL.parse(url);
-			options.method = "POST";
+			const parsedUrl = new URL(url);
+			const options: https.RequestOptions = {
+				protocol: parsedUrl.protocol,
+				hostname: parsedUrl.hostname,
+				port: parsedUrl.port,
+				path: parsedUrl.pathname + parsedUrl.search,
+				method: "POST",
+			};
 			if (token) options.headers = { authorization: token };
 			request(options, allowInsecure, (res) => {
 				logger.debug("POST", `${url}`, res.statusCode);
@@ -239,7 +244,7 @@ export async function createRegistry(
 						if (location.startsWith("http")) {
 							resolve({ uploadUrl: location });
 						} else {
-							const regURL = URL.parse(registryBaseUrl);
+							const regURL = new URL(registryBaseUrl);
 							resolve({
 								uploadUrl: `${regURL.protocol}//${regURL.hostname}${regURL.port ? ":" + regURL.port : ""}${location}`,
 							});

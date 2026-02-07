@@ -1,6 +1,5 @@
 import * as https from "https";
 import * as http from "http";
-import * as URL from "url";
 
 import logger from "./logger";
 import { InsecureRegistrySupport } from "./types";
@@ -13,12 +12,18 @@ export function isOk(httpStatus: number) {
 }
 type HttpMethod = "GET" | "POST" | "PUT" | "HEAD";
 export function createHttpOptions(method: HttpMethod, url: string, headers: OutgoingHttpHeaders): https.RequestOptions {
-	const options: https.RequestOptions = { ...URL.parse(url) };
-	options.headers = headers;
-	options.method = method;
+	const parsedUrl = new URL(url);
+	const options: https.RequestOptions = {
+		protocol: parsedUrl.protocol,
+		hostname: parsedUrl.hostname,
+		port: parsedUrl.port,
+		path: parsedUrl.pathname + parsedUrl.search,
+		headers: headers,
+		method: method,
+	};
 	if (url.includes("X-Amz-Algorithm") && method == "GET") {
 		//We are using a pre-signed URL, so we don't need to send the Authorization header
-		options.headers["Authorization"] = "";
+		(options.headers as OutgoingHttpHeaders)["Authorization"] = "";
 	}
 	return options;
 }
