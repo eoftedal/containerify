@@ -13,10 +13,10 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
 
       - name: Cache node modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./node_modules
           key: ${{ runner.OS }}-build-${{ hashFiles('**/package-lock.json') }}
@@ -25,7 +25,7 @@ jobs:
             ${{ runner.OS }}-
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Lint
         run: npm run check
