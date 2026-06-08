@@ -67,9 +67,9 @@ export type HistoryLine = {
 
 export type Options = {
 	from?: string;
-	to?: string;
+	to?: string | string[];
 	fromImage: string;
-	toImage: string;
+	toImage?: string | string[];
 	folder: string;
 	file?: string;
 	fromRegistry?: string;
@@ -78,6 +78,7 @@ export type Options = {
 	doCrossMount: boolean;
 	optimisticToRegistryCheck?: boolean;
 	toToken?: string;
+	toImages?: string[];
 	toTar?: string;
 	toDocker?: boolean;
 	registry?: string;
@@ -113,7 +114,7 @@ export enum InsecureRegistrySupport {
 export type Registry = {
 	download: (imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) => Promise<Manifest>;
 	upload: (
-		imageStr: string,
+		imageStr: string | string[],
 		folder: string,
 		doCrossMount: boolean,
 		originalManifest: Manifest,

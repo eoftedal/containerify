@@ -356,13 +356,21 @@ export async function createRegistry(
 	}
 
 	async function upload(
-		imageStr: string,
+		imageStr: string | string[],
 		folder: string,
 		doCrossMount: boolean,
 		originalManifest: Manifest,
 		originalRepository: string,
 	) {
-		const image = parseImage(imageStr);
+		const images = (Array.isArray(imageStr) ? imageStr : [imageStr]).map(parseImage);
+		if (images.length === 0) throw new Error("No target image specified for upload");
+		const uniquePaths = [...new Set(images.map((i) => i.path))];
+		if (uniquePaths.length > 1) {
+			throw new Error(
+				`All target images must share the same repository path when pushing to one registry, but got: ${uniquePaths.join(", ")}`,
+			);
+		}
+		const image = images[0];
 		const manifestFile = path.join(folder, "manifest.json");
 		const manifest = (await fse.readJson(manifestFile)) as Manifest;
 		logger.info("Checking layer status...");
@@ -400,16 +408,18 @@ export async function createRegistry(
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
 		await uploadContent(configUploadUrl.uploadUrl, configFile, manifest.config, allowInsecure, token);
 
-		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
-		await uploadContent(
-			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
-			manifestFile,
-			{ mediaType: manifest.mediaType, size: manifestSize },
-			allowInsecure,
-			token,
-			manifest.mediaType,
-		);
+		for (const target of images) {
+			logger.info(`Uploading manifest ${target.path}:${target.tag} ...`);
+			await uploadContent(
+				`${registryBaseUrl}${target.path}/manifests/${target.tag}`,
+				manifestFile,
+				{ mediaType: manifest.mediaType, size: manifestSize },
+				allowInsecure,
+				token,
+				manifest.mediaType,
+			);
+		}
 	}
 
 	async function download(
