@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.4.0] - 2026-06-09
+
+### Added
+
+- Support for pushing the image under multiple tags via repeated `--toImage` arguments
+- `--toImage` entries with only `name:tag` inherit the repository path from `--to`
+
+### Changed
+
+- `--to` can now only be specified once (use `--toImage` for additional tags)
+- `--toRegistry` can now only be specified once
+
 ## [3.3.2] - 2026-02-07
 
 ### Chore

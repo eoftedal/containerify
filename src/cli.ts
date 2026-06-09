@@ -23,14 +23,24 @@ function collect(value: string, previous?: string[]): string[] {
 	return (previous ?? []).concat([value]);
 }
 
+function onlyOnce(optionName: string) {
+	return (value: string, previous?: string): string => {
+		if (previous !== undefined) {
+			logger.error(`ERROR: ${optionName} can only be specified once`);
+			process.exit(1);
+		}
+		return value;
+	};
+}
+
 program
 	.name("containerify")
 	.description("A CLI-tool for creating container images.")
 	.option("--from <registry/image:tag>", "Optional: Shorthand to specify fromRegistry and fromImage in one argument")
 	.option(
 		"--to <registry/image:tag>",
-		"Optional: Shorthand to specify toRegistry and toImage in one argument. Can be repeated to tag/push the image multiple times",
-		collect,
+		"Optional: Shorthand to specify toRegistry and the first toImage in one argument. Use additional --toImage arguments to push under multiple tags",
+		onlyOnce("--to"),
 	)
 	.option("--fromImage <name:tag>", "Required: Image name of base image - [path/]image:tag")
 	.option(
@@ -52,6 +62,7 @@ program
 	.option(
 		"--toRegistry <registry url>",
 		"Optional: URL of registry to push base image to - Default, https,//registry-1.docker.io/v2/",
+		onlyOnce("--toRegistry"),
 	)
 	.option(
 		"--optimisticToRegistryCheck",
@@ -200,9 +211,8 @@ function exitWithErrorIf(check: boolean, error: string) {
 
 if (options.verbose) logger.enableDebug();
 
-// --to and --toImage can each be specified multiple times to tag/push the image
-// under multiple tags. They may also come from a config file as a single string.
-const toEntries: string[] = options.to ? (Array.isArray(options.to) ? options.to : [options.to]) : [];
+// --to is a single shorthand that sets toRegistry plus the first toImage.
+// --toImage can be specified multiple times to push the image under multiple tags.
 const toImageEntries: string[] = options.toImage
 	? Array.isArray(options.toImage)
 		? options.toImage
@@ -219,24 +229,29 @@ exitWithErrorIf(!!options.from && !!options.fromRegistry, "Do not set both --fro
 exitWithErrorIf(!!options.registry && !!options.from, "Do not set both --registry and --from");
 
 exitWithErrorIf(!!options.registry && !!options.toRegistry, "Do not set both --registry and --toRegistry");
-exitWithErrorIf(toEntries.length > 0 && !!options.toRegistry, "Do not set both --toRegistry and --to");
-exitWithErrorIf(toEntries.length > 0 && !!options.registry, "Do not set both --registry and --to");
+exitWithErrorIf(!!options.to && !!options.toRegistry, "Do not set both --toRegistry and --to");
+exitWithErrorIf(!!options.to && !!options.registry, "Do not set both --registry and --to");
 if (options.from) {
 	const { registry, image } = parseFullImageUrl(options.from);
 	options.fromRegistry = registry;
 	options.fromImage = image;
 }
-// Resolve --to shorthand into a single toRegistry plus image tags.
-// All --to targets must point to the same registry (one registry, multiple tags).
-if (toEntries.length > 0) {
-	const parsed = toEntries.map(parseFullImageUrl);
-	const registries = [...new Set(parsed.map((p) => p.registry))];
-	exitWithErrorIf(
-		registries.length > 1,
-		`All --to targets must use the same registry, but got: ${registries.join(", ")}`,
-	);
-	options.toRegistry = registries[0];
-	toImageEntries.push(...parsed.map((p) => p.image));
+// Resolve the --to shorthand into toRegistry plus the first image tag.
+// Additional tags are supplied through --toImage. Any --toImage entry that only
+// specifies a name:tag (no path) inherits the repository path from --to.
+if (options.to) {
+	const { registry, image } = parseFullImageUrl(options.to as string);
+	options.toRegistry = registry;
+	const lastSlash = image.lastIndexOf("/");
+	const pathPrefix = lastSlash >= 0 ? image.slice(0, lastSlash + 1) : "";
+	if (pathPrefix) {
+		for (let i = 0; i < toImageEntries.length; i++) {
+			if (!toImageEntries[i].includes("/")) {
+				toImageEntries[i] = pathPrefix + toImageEntries[i];
+			}
+		}
+	}
+	toImageEntries.unshift(image);
 }
 
 exitWithErrorIf(!!options.token && !!options.fromToken, "Do not set both --token and --fromToken");
@@ -282,7 +297,7 @@ if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/"))
 	options.fromImage = "library/" + options.fromImage;
 }
 
-options.toImages = toImageEntries;
+options.toImage = toImageEntries;
 
 exitWithErrorIf(
 	!options.toRegistry && !options.toTar && !options.toDocker,
@@ -338,7 +353,7 @@ async function run(options: Options) {
 
 	const manifestDescriptor = await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
-	const toImages = options.toImages ?? [];
+	const toImages = Array.isArray(options.toImage) ? options.toImage : options.toImage ? [options.toImage] : [];
 
 	if (options.toDocker) {
 		if (!(await dockerExporter.isAvailable())) {

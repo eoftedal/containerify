@@ -67,7 +67,7 @@ export type HistoryLine = {
 
 export type Options = {
 	from?: string;
-	to?: string | string[];
+	to?: string;
 	fromImage: string;
 	toImage?: string | string[];
 	folder: string;
@@ -78,7 +78,6 @@ export type Options = {
 	doCrossMount: boolean;
 	optimisticToRegistryCheck?: boolean;
 	toToken?: string;
-	toImages?: string[];
 	toTar?: string;
 	toDocker?: boolean;
 	registry?: string;
