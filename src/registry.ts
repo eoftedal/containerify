@@ -356,13 +356,13 @@ export async function createRegistry(
 	}
 
 	async function upload(
-		imageStr: string | string[],
+		imageStr: string[],
 		folder: string,
 		doCrossMount: boolean,
 		originalManifest: Manifest,
 		originalRepository: string,
 	) {
-		const images = (Array.isArray(imageStr) ? imageStr : [imageStr]).map(parseImage);
+		const images = imageStr.map(parseImage);
 		const manifestFile = path.join(folder, "manifest.json");
 		const manifest = (await fse.readJson(manifestFile)) as Manifest;
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");

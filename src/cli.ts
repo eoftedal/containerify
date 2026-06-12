@@ -353,7 +353,7 @@ async function run(options: Options) {
 
 	const manifestDescriptor = await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
-	const toImages = Array.isArray(options.toImage) ? options.toImage : options.toImage ? [options.toImage] : [];
+	const toImages = options.toImage as string[];
 
 	if (options.toDocker) {
 		if (!(await dockerExporter.isAvailable())) {
