@@ -54,9 +54,9 @@ Usage: containerify [options]
 
 Options:
   --from <registry/image:tag>     Optional: Shorthand to specify fromRegistry and fromImage in one argument
-  --to <registry/image:tag>       Optional: Shorthand to specify toRegistry and toImage in one argument
+  --to <registry/image:tag>       Optional: Shorthand to specify toRegistry and the first toImage in one argument. Use additional --toImage arguments to push under multiple tags
   --fromImage <name:tag>          Required: Image name of base image - [path/]image:tag
-  --toImage <name:tag>            Required: Image name of target image - [path/]image:tag
+  --toImage <name:tag>            Required: Image name of target image - [path/]image:tag. Can be repeated to push the image under multiple tags
   --folder <full path>            Required: Base folder of node application (contains package.json)
   --file <path>                   Optional: Name of configuration file (defaults to containerify.json if found on path)
   --doCrossMount                  Optional: Cross mount image layers from the base image (only works if fromImage and toImage are in the same registry) (default: false)

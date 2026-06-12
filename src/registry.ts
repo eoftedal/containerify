@@ -356,60 +356,70 @@ export async function createRegistry(
 	}
 
 	async function upload(
-		imageStr: string,
+		imageStr: string[],
 		folder: string,
 		doCrossMount: boolean,
 		originalManifest: Manifest,
 		originalRepository: string,
 	) {
-		const image = parseImage(imageStr);
+		const images = imageStr.map(parseImage);
 		const manifestFile = path.join(folder, "manifest.json");
 		const manifest = (await fse.readJson(manifestFile)) as Manifest;
-		logger.info("Checking layer status...");
-		const layerStatus = await Promise.all(
-			manifest.layers.map(async (l) => {
-				return { layer: l, exists: await exists(image, l) };
-			}),
-		);
-		const layersForUpload = layerStatus.filter((l) => !l.exists);
-		logger.debug(
-			"Needs upload:",
-			layersForUpload.map((l) => l.layer.digest),
-		);
-		logger.info("Uploading layers...");
-		await Promise.all(
-			layersForUpload.map(async (l) => {
-				if (doCrossMount && originalManifest.layers.find((x) => x.digest == l.layer.digest)) {
-					const mount = await getUploadUrl(image, { mount: l.layer.digest, from: originalRepository });
-					if ("mountSuccess" in mount) {
-						logger.info(`Cross mounted layer ${l.layer.digest} from '${originalRepository}'`);
-						return;
-					}
-					await uploadLayerContent(mount.uploadUrl, l.layer, folder);
-				} else {
-					const url = await getUploadUrl(image);
-					if ("mountSuccess" in url) throw new Error("Mounting not supported for this upload");
-					await uploadLayerContent(url.uploadUrl, l.layer, folder);
-				}
-			}),
-		);
-
-		logger.info("Uploading config...");
-		const configUploadUrl = await getUploadUrl(image);
-		if ("mountSuccess" in configUploadUrl) throw new Error("Mounting not supported for config upload");
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
-		await uploadContent(configUploadUrl.uploadUrl, configFile, manifest.config, allowInsecure, token);
 
-		logger.info("Uploading manifest...");
+		// Layers and the config blob are content-addressed per repository path, so they
+		// must be uploaded once for every distinct target repository path. Targets that
+		// only differ by tag share the same uploaded blobs.
+		const uniquePaths = [...new Set(images.map((i) => i.path))];
+		for (const repoPath of uniquePaths) {
+			const image = images.find((i) => i.path === repoPath)!;
+			logger.info(`Checking layer status for ${repoPath} ...`);
+			const layerStatus = await Promise.all(
+				manifest.layers.map(async (l) => {
+					return { layer: l, exists: await exists(image, l) };
+				}),
+			);
+			const layersForUpload = layerStatus.filter((l) => !l.exists);
+			logger.debug(
+				"Needs upload:",
+				layersForUpload.map((l) => l.layer.digest),
+			);
+			logger.info(`Uploading layers to ${repoPath} ...`);
+			await Promise.all(
+				layersForUpload.map(async (l) => {
+					if (doCrossMount && originalManifest.layers.find((x) => x.digest == l.layer.digest)) {
+						const mount = await getUploadUrl(image, { mount: l.layer.digest, from: originalRepository });
+						if ("mountSuccess" in mount) {
+							logger.info(`Cross mounted layer ${l.layer.digest} from '${originalRepository}'`);
+							return;
+						}
+						await uploadLayerContent(mount.uploadUrl, l.layer, folder);
+					} else {
+						const url = await getUploadUrl(image);
+						if ("mountSuccess" in url) throw new Error("Mounting not supported for this upload");
+						await uploadLayerContent(url.uploadUrl, l.layer, folder);
+					}
+				}),
+			);
+
+			logger.info(`Uploading config to ${repoPath} ...`);
+			const configUploadUrl = await getUploadUrl(image);
+			if ("mountSuccess" in configUploadUrl) throw new Error("Mounting not supported for config upload");
+			await uploadContent(configUploadUrl.uploadUrl, configFile, manifest.config, allowInsecure, token);
+		}
+
 		const manifestSize = await fileutil.sizeOf(manifestFile);
-		await uploadContent(
-			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
-			manifestFile,
-			{ mediaType: manifest.mediaType, size: manifestSize },
-			allowInsecure,
-			token,
-			manifest.mediaType,
-		);
+		for (const target of images) {
+			logger.info(`Uploading manifest ${target.path}:${target.tag} ...`);
+			await uploadContent(
+				`${registryBaseUrl}${target.path}/manifests/${target.tag}`,
+				manifestFile,
+				{ mediaType: manifest.mediaType, size: manifestSize },
+				allowInsecure,
+				token,
+				manifest.mediaType,
+			);
+		}
 	}
 
 	async function download(

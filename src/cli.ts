@@ -19,13 +19,35 @@ import { VERSION } from "./version";
 
 const program = new Command();
 
+function collect(value: string, previous?: string[]): string[] {
+	return (previous ?? []).concat([value]);
+}
+
+function onlyOnce(optionName: string) {
+	return (value: string, previous?: string): string => {
+		if (previous !== undefined) {
+			logger.error(`ERROR: ${optionName} can only be specified once`);
+			process.exit(1);
+		}
+		return value;
+	};
+}
+
 program
 	.name("containerify")
 	.description("A CLI-tool for creating container images.")
 	.option("--from <registry/image:tag>", "Optional: Shorthand to specify fromRegistry and fromImage in one argument")
-	.option("--to <registry/image:tag>", "Optional: Shorthand to specify toRegistry and toImage in one argument")
+	.option(
+		"--to <registry/image:tag>",
+		"Optional: Shorthand to specify toRegistry and the first toImage in one argument. Use additional --toImage arguments to push under multiple tags",
+		onlyOnce("--to"),
+	)
 	.option("--fromImage <name:tag>", "Required: Image name of base image - [path/]image:tag")
-	.option("--toImage <name:tag>", "Required: Image name of target image - [path/]image:tag")
+	.option(
+		"--toImage <name:tag>",
+		"Required: Image name of target image - [path/]image:tag. Can be repeated to push the image under multiple tags",
+		collect,
+	)
 	.option("--folder <full path>", "Required: Base folder of node application (contains package.json)")
 	.option("--file <path>", "Optional: Name of configuration file (defaults to containerify.json if found on path)")
 	.option(
@@ -40,6 +62,7 @@ program
 	.option(
 		"--toRegistry <registry url>",
 		"Optional: URL of registry to push base image to - Default, https,//registry-1.docker.io/v2/",
+		onlyOnce("--toRegistry"),
 	)
 	.option(
 		"--optimisticToRegistryCheck",
@@ -188,6 +211,14 @@ function exitWithErrorIf(check: boolean, error: string) {
 
 if (options.verbose) logger.enableDebug();
 
+// --to is a single shorthand that sets toRegistry plus the first toImage.
+// --toImage can be specified multiple times to push the image under multiple tags.
+const toImageEntries: string[] = options.toImage
+	? Array.isArray(options.toImage)
+		? options.toImage
+		: [options.toImage]
+	: [];
+
 exitWithErrorIf(
 	!!options.setTimeStamp && !!options.preserveTimeStamp,
 	"Do not set both --preserveTimeStamp and --setTimeStamp",
@@ -199,25 +230,32 @@ exitWithErrorIf(!!options.registry && !!options.from, "Do not set both --registr
 
 exitWithErrorIf(!!options.registry && !!options.toRegistry, "Do not set both --registry and --toRegistry");
 exitWithErrorIf(!!options.to && !!options.toRegistry, "Do not set both --toRegistry and --to");
-exitWithErrorIf(!!options.registry && !!options.to, "Do not set both --registry and --to");
+exitWithErrorIf(!!options.to && !!options.registry, "Do not set both --registry and --to");
 if (options.from) {
 	const { registry, image } = parseFullImageUrl(options.from);
 	options.fromRegistry = registry;
 	options.fromImage = image;
 }
+// Resolve the --to shorthand into toRegistry plus the first image tag.
+// Additional tags are supplied through --toImage. Any --toImage entry that only
+// specifies a name:tag (no path) inherits the repository path from --to.
 if (options.to) {
-	const { registry, image } = parseFullImageUrl(options.to);
+	const { registry, image } = parseFullImageUrl(options.to as string);
 	options.toRegistry = registry;
-	options.toImage = image;
+	const lastSlash = image.lastIndexOf("/");
+	const pathPrefix = lastSlash >= 0 ? image.slice(0, lastSlash + 1) : "";
+	if (pathPrefix) {
+		for (let i = 0; i < toImageEntries.length; i++) {
+			if (!toImageEntries[i].includes("/")) {
+				toImageEntries[i] = pathPrefix + toImageEntries[i];
+			}
+		}
+	}
+	toImageEntries.unshift(image);
 }
 
 exitWithErrorIf(!!options.token && !!options.fromToken, "Do not set both --token and --fromToken");
 exitWithErrorIf(!!options.token && !!options.toToken, "Do not set both --token and --toToken");
-
-exitWithErrorIf(
-	!!options.doCrossMount && options.toRegistry != options.fromRegistry,
-	`Cross mounting only works if fromRegistry and toRegistry are the same (${options.fromRegistry} != ${options.toRegistry})`,
-);
 
 if (options.setTimeStamp) {
 	try {
@@ -248,7 +286,19 @@ if (options.token) {
 
 exitWithErrorIf(!options.folder, "--folder must be specified");
 exitWithErrorIf(!options.fromImage, "--fromImage must be specified");
-exitWithErrorIf(!options.toImage, "--toImage must be specified");
+exitWithErrorIf(toImageEntries.length === 0, "--toImage must be specified");
+
+if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
+if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
+
+if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/")) {
+	// Docker Hub official images live under the "library/" namespace, so a bare
+	// name like "node:alpine" must be normalized to "library/node:alpine".
+	options.fromImage = "library/" + options.fromImage;
+}
+
+options.toImage = toImageEntries;
+
 exitWithErrorIf(
 	!options.toRegistry && !options.toTar && !options.toDocker,
 	"Must specify either --toTar, --toRegistry or --toDocker",
@@ -257,13 +307,10 @@ exitWithErrorIf(
 	!!options.toRegistry && !options.toToken && !options.allowNoPushAuth,
 	"A token must be provided when uploading images",
 );
-
-if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
-if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
-
-if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/")) {
-	options.fromImage = "library/" + options.fromImage;
-}
+exitWithErrorIf(
+	!!options.doCrossMount && options.toRegistry != options.fromRegistry,
+	`Cross mounting only works if fromRegistry and toRegistry are the same (${options.fromRegistry} != ${options.toRegistry})`,
+);
 
 Object.keys(options.customContent).forEach((p) => {
 	exitWithErrorIf(!fs.existsSync(p), `Could not find ${p} in the base folder ${options.folder}`);
@@ -306,26 +353,28 @@ async function run(options: Options) {
 
 	const manifestDescriptor = await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
+	const toImages = options.toImage as string[];
+
 	if (options.toDocker) {
 		if (!(await dockerExporter.isAvailable())) {
 			throw new Error("Docker executable not found on path. Unable to export to local docker registry.");
 		}
 		const dockerDir = path.join(tmpdir, "toDocker");
-		await tarExporter.saveToTar(todir, tmpdir, dockerDir, [options.toImage], options);
+		await tarExporter.saveToTar(todir, tmpdir, dockerDir, toImages, options);
 		await dockerExporter.load(dockerDir);
 	}
 	if (options.toTar) {
-		await tarExporter.saveToTar(todir, tmpdir, options.toTar, [options.toImage], options);
+		await tarExporter.saveToTar(todir, tmpdir, options.toTar, toImages, options);
 	}
 	if (options.toRegistry) {
 		const toRegistry = await createRegistry(
 			options.toRegistry,
-			options.toImage,
+			toImages[0],
 			allowInsecure,
 			options.toToken,
 			options.optimisticToRegistryCheck,
 		);
-		await toRegistry.upload(options.toImage, todir, options.doCrossMount, originalManifest, options.fromImage);
+		await toRegistry.upload(toImages, todir, options.doCrossMount, originalManifest, options.fromImage);
 	}
 	logger.debug(`Deleting ${tmpdir} ...`);
 	await fse.remove(tmpdir);

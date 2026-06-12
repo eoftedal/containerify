@@ -69,7 +69,7 @@ export type Options = {
 	from?: string;
 	to?: string;
 	fromImage: string;
-	toImage: string;
+	toImage?: string[];
 	folder: string;
 	file?: string;
 	fromRegistry?: string;
@@ -113,7 +113,7 @@ export enum InsecureRegistrySupport {
 export type Registry = {
 	download: (imageStr: string, folder: string, preferredPlatform: Platform, cacheFolder?: string) => Promise<Manifest>;
 	upload: (
-		imageStr: string,
+		imageStr: string[],
 		folder: string,
 		doCrossMount: boolean,
 		originalManifest: Manifest,
