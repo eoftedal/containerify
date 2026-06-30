@@ -88,6 +88,7 @@ export type Options = {
 	entrypoint: string;
 	labels: Record<string, string>;
 	envs: string[];
+	additionalTags: string[];
 	preserveTimeStamp?: boolean;
 	setTimeStamp?: string;
 	verbose?: boolean;
@@ -118,6 +119,7 @@ export type Registry = {
 		doCrossMount: boolean,
 		originalManifest: Manifest,
 		originalRepository: string,
+		additionalTags?: string[],
 	) => Promise<void>;
 	registryBaseUrl: string;
 };

@@ -3,3 +3,4 @@ tmp/
 .idea
 lib/
 .DS_Store
+tests/integration/app/package-lock.json

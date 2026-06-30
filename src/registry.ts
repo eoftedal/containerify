@@ -361,6 +361,7 @@ export async function createRegistry(
 		doCrossMount: boolean,
 		originalManifest: Manifest,
 		originalRepository: string,
+		additionalTags: string[] = [],
 	) {
 		const image = parseImage(imageStr);
 		const manifestFile = path.join(folder, "manifest.json");
@@ -400,16 +401,18 @@ export async function createRegistry(
 		const configFile = path.join(folder, getHash(manifest.config.digest) + ".json");
 		await uploadContent(configUploadUrl.uploadUrl, configFile, manifest.config, allowInsecure, token);
 
-		logger.info("Uploading manifest...");
 		const manifestSize = await fileutil.sizeOf(manifestFile);
-		await uploadContent(
-			`${registryBaseUrl}${image.path}/manifests/${image.tag}`,
-			manifestFile,
-			{ mediaType: manifest.mediaType, size: manifestSize },
-			allowInsecure,
-			token,
-			manifest.mediaType,
-		);
+		for (const tag of [image.tag, ...additionalTags]) {
+			logger.info(`Uploading manifest for tag ${tag}...`);
+			await uploadContent(
+				`${registryBaseUrl}${image.path}/manifests/${tag}`,
+				manifestFile,
+				{ mediaType: manifest.mediaType, size: manifestSize },
+				allowInsecure,
+				token,
+				manifest.mediaType,
+			);
+		}
 	}
 
 	async function download(

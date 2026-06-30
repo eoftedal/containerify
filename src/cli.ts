@@ -13,7 +13,7 @@ import tarExporter from "./tarExporter";
 
 import logger from "./logger";
 import { InsecureRegistrySupport, Options } from "./types";
-import { omit, getPreferredPlatform } from "./utils";
+import { omit, getPreferredPlatform, parseImage } from "./utils";
 import { ensureEmptyDir } from "./fileutil";
 import { VERSION } from "./version";
 
@@ -62,6 +62,12 @@ program
 	.option(
 		"--entrypoint <entrypoint>",
 		"Optional: Entrypoint when starting container - default, npm start (empty for customContent)",
+	)
+	.option(
+		"--additionalTag <tag>",
+		"Optional: Additional tag for the target image. Can be specified multiple times to add several tags.",
+		(value: string, previous: string[]) => previous.concat([value]),
+		[],
 	)
 	.option("--label, --labels <labels...>", "Optional: Comma-separated list of key value pairs to use as labels")
 	.option(
@@ -150,6 +156,8 @@ cliOptions.extraContent?.forEach((extras: string) =>
 
 const extraContent = { ...configFromFile.extraContent, ...cliExtraContent };
 
+const additionalTags: string[] = [...(configFromFile.additionalTag ?? []), ...(cliOptions.additionalTag ?? [])];
+
 const cliParams: Record<string, string> = omit(cliOptions, [
 	"label",
 	"labels",
@@ -157,6 +165,7 @@ const cliParams: Record<string, string> = omit(cliOptions, [
 	"envs",
 	"customContent",
 	"extraContent",
+	"additionalTag",
 ]);
 
 const setOptions: Options = {
@@ -165,6 +174,7 @@ const setOptions: Options = {
 	customContent,
 	extraContent,
 	labels,
+	additionalTags,
 	envs: Object.entries(envs).map(([k, v]) => `${k}=${v}`),
 };
 
@@ -306,16 +316,19 @@ async function run(options: Options) {
 
 	const manifestDescriptor = await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
 
+	const toImagePath = parseImage(options.toImage).path;
+	const repoTags = [options.toImage, ...options.additionalTags.map((tag) => `${toImagePath}:${tag}`)];
+
 	if (options.toDocker) {
 		if (!(await dockerExporter.isAvailable())) {
 			throw new Error("Docker executable not found on path. Unable to export to local docker registry.");
 		}
 		const dockerDir = path.join(tmpdir, "toDocker");
-		await tarExporter.saveToTar(todir, tmpdir, dockerDir, [options.toImage], options);
+		await tarExporter.saveToTar(todir, tmpdir, dockerDir, repoTags, options);
 		await dockerExporter.load(dockerDir);
 	}
 	if (options.toTar) {
-		await tarExporter.saveToTar(todir, tmpdir, options.toTar, [options.toImage], options);
+		await tarExporter.saveToTar(todir, tmpdir, options.toTar, repoTags, options);
 	}
 	if (options.toRegistry) {
 		const toRegistry = await createRegistry(
@@ -325,7 +338,14 @@ async function run(options: Options) {
 			options.toToken,
 			options.optimisticToRegistryCheck,
 		);
-		await toRegistry.upload(options.toImage, todir, options.doCrossMount, originalManifest, options.fromImage);
+		await toRegistry.upload(
+			options.toImage,
+			todir,
+			options.doCrossMount,
+			originalManifest,
+			options.fromImage,
+			options.additionalTags,
+		);
 	}
 	logger.debug(`Deleting ${tmpdir} ...`);
 	await fse.remove(tmpdir);

@@ -73,6 +73,7 @@ Options:
   --user <user>                   Optional: User account to run process in container - default: 1000 (empty for customContent)
   --workdir <directory>           Optional: Workdir where node app will be added and run from - default: /app (empty for customContent)
   --entrypoint <entrypoint>       Optional: Entrypoint when starting container - default: npm start (empty for customContent)
+  --additionalTag <tag>           Optional: Additional tag for the target image. Can be specified multiple times to add several tags.
   --label, --labels <labels...>   Optional: Comma-separated list of key value pairs to use as labels
   --env, --envs <envs...>         Optional: Comma-separated list of key value pairs to use av environment variables.
   --setTimeStamp <timestamp>      Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config
