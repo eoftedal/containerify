@@ -37,6 +37,15 @@ export type Manifest = {
 
 export type PartialManifestConfig = Omit<Descriptor, "digest"> & Partial<Pick<Descriptor, "digest">>;
 
+export type HealthCheck = {
+	Test: string[];
+	Interval?: number;
+	Timeout?: number;
+	StartPeriod?: number;
+	StartInterval?: number;
+	Retries?: number;
+};
+
 export type Config = {
 	architecture?: string;
 	os?: string;
@@ -51,6 +60,7 @@ export type Config = {
 		Entrypoint: string[];
 		User: string;
 		ExposedPorts?: Record<string, Record<string, never>>;
+		Healthcheck?: HealthCheck;
 	};
 	container_config: {
 		Labels: Record<string, string>;
@@ -107,6 +117,12 @@ export type Options = {
 		entrypoint?: string;
 	};
 	writeDigestTo?: string;
+	healtcheckCmd?: string;
+	healtcheckInterval?: string;
+	healtcheckTimeout?: string;
+	healtcheckStartPeriod?: string;
+	healtcheckStartInterval?: string;
+	healtcheckRetries?: string;
 };
 
 export enum InsecureRegistrySupport {

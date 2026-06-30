@@ -103,6 +103,27 @@ program
 	.option("--buildFolder <path>", "Optional: Use a specific build folder when creating the image")
 	.option("--layerCacheFolder <path>", "Optional: Folder to cache base layers between builds")
 	.option("--writeDigestTo <path>", "Optional: Write the resulting image digest to the file path provided")
+	.option("--healtcheck-cmd <cmd>", "Optional: Health check command to run inside the container")
+	.option(
+		"--healtcheck-interval <duration>",
+		"Optional: Time between running the check, e.g. 30s, 1m (default: 30s). Requires --healtcheck-cmd.",
+	)
+	.option(
+		"--healtcheck-timeout <duration>",
+		"Optional: Maximum time to allow one check to run, e.g. 10s (default: 30s). Requires --healtcheck-cmd.",
+	)
+	.option(
+		"--healtcheck-start-period <duration>",
+		"Optional: Start period before retries count, e.g. 5s (default: 0s). Requires --healtcheck-cmd.",
+	)
+	.option(
+		"--healtcheck-start-interval <duration>",
+		"Optional: Time between checks during the start period, e.g. 5s (default: 5s). Requires --healtcheck-cmd.",
+	)
+	.option(
+		"--healtcheck-retries <n>",
+		"Optional: Consecutive failures needed to report unhealthy (default: 3). Requires --healtcheck-cmd.",
+	)
 	.version(VERSION, "--version", "Get containerify version");
 
 program.parse(process.argv);
@@ -272,6 +293,36 @@ if (options.expose && options.expose.length > 0) {
 				`--expose port must be between 1 and 65535, but was: ${portNum}`,
 			);
 		}
+	}
+}
+
+const healtcheckDurationOptions: Array<[string, string | undefined]> = [
+	["--healtcheck-interval", options.healtcheckInterval],
+	["--healtcheck-timeout", options.healtcheckTimeout],
+	["--healtcheck-start-period", options.healtcheckStartPeriod],
+	["--healtcheck-start-interval", options.healtcheckStartInterval],
+];
+const healtcheckExtraOptions: Array<string | undefined> = [
+	...healtcheckDurationOptions.map(([, v]) => v),
+	options.healtcheckRetries,
+];
+exitWithErrorIf(
+	!options.healtcheckCmd && healtcheckExtraOptions.some(Boolean),
+	"--healtcheck-cmd must be set when using other --healtcheck-* options",
+);
+if (options.healtcheckRetries !== undefined) {
+	exitWithErrorIf(
+		!/^\d+$/.test(options.healtcheckRetries) || parseInt(options.healtcheckRetries, 10) < 1,
+		`--healtcheck-retries must be a positive integer, but was: ${options.healtcheckRetries}`,
+	);
+}
+const durationPattern = /^(\d+h)?(\d+m)?(\d+s)?$/;
+for (const [flag, value] of healtcheckDurationOptions) {
+	if (value !== undefined) {
+		exitWithErrorIf(
+			!durationPattern.test(value) || value === "",
+			`${flag} must be a valid duration (e.g. 30s, 1m, 1h30m), but was: ${value}`,
+		);
 	}
 }
 

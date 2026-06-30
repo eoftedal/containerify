@@ -89,6 +89,12 @@ Options:
   --buildFolder <path>            Optional: Use a specific build folder when creating the image
   --layerCacheFolder <path>       Optional: Folder to cache base layers between builds
   --writeDigestTo <path>          Optional: Write the resulting image digest to the file path provided
+  --healtcheck-cmd <cmd>          Optional: Health check command to run inside the container
+  --healtcheck-interval <dur>     Optional: Time between running the check, e.g. 30s, 1m (default: 30s). Requires --healtcheck-cmd.
+  --healtcheck-timeout <dur>      Optional: Maximum time to allow one check to run, e.g. 10s (default: 30s). Requires --healtcheck-cmd.
+  --healtcheck-start-period <dur> Optional: Start period before retries count, e.g. 5s (default: 0s). Requires --healtcheck-cmd.
+  --healtcheck-start-interval <dur> Optional: Time between checks during the start period (default: 5s). Requires --healtcheck-cmd.
+  --healtcheck-retries <n>        Optional: Consecutive failures needed to report unhealthy (default: 3). Requires --healtcheck-cmd.
   --version                       Get containerify version
   -h, --help                      display help for command
 ```
