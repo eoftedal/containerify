@@ -10,7 +10,7 @@
 
 ### Added
 
-- Support for `--additionalTag` to tag the target image with multiple tags. Can be specified more than once.
+- Support for `--additionalTag` to tag the target image with multiple tags. Can be specified more than once. As suggested by @benmatthews
 
 ## [3.3.2] - 2026-02-07
 
