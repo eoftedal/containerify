@@ -9,7 +9,7 @@ import { Gunzip } from "minizlib";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
-import { Config, Layer, Manifest, ManifestDescriptor, Options } from "./types";
+import { Config, HealthCheck, Layer, Manifest, ManifestDescriptor, Options } from "./types";
 import { getManifestLayerType, getLayerTypeFileEnding, unique } from "./utils";
 import { VERSION } from "./version";
 
@@ -183,6 +183,7 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 		await addEnvsLayer(options, config);
 		await addLabelsLayer(options, config);
 		await addExposeLayer(options, config);
+		await addHealthcheckLayer(options, config);
 		await addDataLayer(tmpdir, todir, options, config, manifest, Object.entries(options.customContent), "custom");
 	} else {
 		await addWorkdirLayer(options, config, options.workdir);
@@ -191,6 +192,7 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 		await addEnvsLayer(options, config);
 		await addLabelsLayer(options, config);
 		await addExposeLayer(options, config);
+		await addHealthcheckLayer(options, config);
 		const appFiles = (await fs.readdir(options.folder)).filter((l) => !ignore.includes(l));
 		const depLayerContent = appFiles.filter((l) => depLayerPossibles.includes(l));
 		const appLayerContent = appFiles.filter((l) => !depLayerPossibles.includes(l));
@@ -241,6 +243,30 @@ async function addExposeLayer(options: Options, config: Config) {
 			config.config.ExposedPorts = { ...(config.config.ExposedPorts ?? {}), ...exposedPorts };
 		});
 	}
+}
+
+function parseDuration(duration: string): number {
+	const match = duration.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+	if (!match) return 0;
+	const hours = parseInt(match[1] || "0", 10);
+	const minutes = parseInt(match[2] || "0", 10);
+	const seconds = parseInt(match[3] || "0", 10);
+	return (hours * 3600 + minutes * 60 + seconds) * 1_000_000_000;
+}
+
+async function addHealthcheckLayer(options: Options, config: Config) {
+	if (!options.healtcheckCmd) return;
+	const healthcheck: HealthCheck = {
+		Test: ["CMD-SHELL", options.healtcheckCmd],
+	};
+	if (options.healtcheckInterval) healthcheck.Interval = parseDuration(options.healtcheckInterval);
+	if (options.healtcheckTimeout) healthcheck.Timeout = parseDuration(options.healtcheckTimeout);
+	if (options.healtcheckStartPeriod) healthcheck.StartPeriod = parseDuration(options.healtcheckStartPeriod);
+	if (options.healtcheckStartInterval) healthcheck.StartInterval = parseDuration(options.healtcheckStartInterval);
+	if (options.healtcheckRetries) healthcheck.Retries = parseInt(options.healtcheckRetries, 10);
+	addEmptyLayer(config, options, `HEALTHCHECK CMD ${options.healtcheckCmd}`, (config) => {
+		config.config.Healthcheck = healthcheck;
+	});
 }
 
 async function addEnvsLayer(options: Options, config: Config) {
