@@ -35,10 +35,23 @@ cd ../../localtest
   --fromImage node \
   --toRegistry http://${LOCAL_REGISTRY}:5443/v2/ \
   --toImage containerify-integration-test:localtest \
+  --additionalTag v1 \
+  --additionalTag stable \
   --doCrossMount \
   --allowInsecureRegistries \
   --allowNoPushAuth \
   --folder ../integration/app --setTimeStamp "2024-01-18T13:33:33.337Z" \
+
+printf "\n* Verifying that all tags were pushed to the registry...\n"
+TAGS=$(curl -s http://${LOCAL_REGISTRY}:5443/v2/containerify-integration-test/tags/list)
+echo "Tags in registry: $TAGS"
+for tag in localtest v1 stable; do
+  if ! echo "$TAGS" | grep -q "\"$tag\""; then
+    echo "ERROR: expected tag '$tag' not found in registry"
+    docker stop registry-containerify-insecure-test > /dev/null
+    exit 1
+  fi
+done
 
 printf "\n* Pulling image from registry to local docker daemon...\n"
 docker pull ${LOCAL_REGISTRY}:5443/containerify-integration-test:localtest &> /dev/null
@@ -46,8 +59,14 @@ docker pull ${LOCAL_REGISTRY}:5443/containerify-integration-test:localtest &> /d
 printf "* Running image on local docker daemon...\n"
 docker run --rm -it ${LOCAL_REGISTRY}:5443/containerify-integration-test:localtest
 
-printf "\n* Deleting image from registry to local docker daemon...\n"
+printf "\n* Verifying additional tags are pullable...\n"
+docker pull ${LOCAL_REGISTRY}:5443/containerify-integration-test:v1 &> /dev/null
+docker pull ${LOCAL_REGISTRY}:5443/containerify-integration-test:stable &> /dev/null
+
+printf "\n* Deleting images from registry to local docker daemon...\n"
 docker rmi ${LOCAL_REGISTRY}:5443/containerify-integration-test:localtest > /dev/null
+docker rmi ${LOCAL_REGISTRY}:5443/containerify-integration-test:v1 > /dev/null
+docker rmi ${LOCAL_REGISTRY}:5443/containerify-integration-test:stable > /dev/null
 
 printf "* Stopping local containerify test registry...\n"
 docker stop registry-containerify-insecure-test > /dev/null
