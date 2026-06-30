@@ -76,6 +76,7 @@ Options:
   --additionalTag <tag>           Optional: Additional tag for the target image. Can be specified multiple times to add several tags.
   --label, --labels <labels...>   Optional: Comma-separated list of key value pairs to use as labels
   --env, --envs <envs...>         Optional: Comma-separated list of key value pairs to use av environment variables.
+  --expose <port[/protocol]>      Optional: Expose a port from the container. Can be specified multiple times. Format: <port> or <port>/<protocol> (tcp/udp).
   --setTimeStamp <timestamp>      Optional: Set a specific ISO 8601 timestamp on all entries (e.g. git commit hash). Default: 1970 in tar files, and current time on manifest/config
   --preserveTimeStamp             Optional: Preserve timestamps on files in the added layers. This might help with cache invalidation.
   --verbose                       Verbose logging

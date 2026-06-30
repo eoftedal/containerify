@@ -50,6 +50,7 @@ export type Config = {
 		WorkingDir: string;
 		Entrypoint: string[];
 		User: string;
+		ExposedPorts?: Record<string, Record<string, never>>;
 	};
 	container_config: {
 		Labels: Record<string, string>;
@@ -94,6 +95,7 @@ export type Options = {
 	verbose?: boolean;
 	allowInsecureRegistries?: boolean;
 	allowNoPushAuth?: boolean;
+	expose?: string[];
 	customContent: Record<string, string>;
 	extraContent: Record<string, string>;
 	layerOwner?: string;

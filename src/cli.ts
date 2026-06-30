@@ -69,6 +69,12 @@ program
 		(value: string, previous: string[]) => previous.concat([value]),
 		[],
 	)
+	.option(
+		"--expose <port[/protocol]>",
+		"Optional: Expose a port from the container. Can be specified multiple times. Format: <port> or <port>/<protocol> (tcp/udp).",
+		(value: string, previous: string[]) => previous.concat([value]),
+		[],
+	)
 	.option("--label, --labels <labels...>", "Optional: Comma-separated list of key value pairs to use as labels")
 	.option(
 		"--env, --envs <envs...>",
@@ -158,6 +164,8 @@ const extraContent = { ...configFromFile.extraContent, ...cliExtraContent };
 
 const additionalTags: string[] = [...(configFromFile.additionalTag ?? []), ...(cliOptions.additionalTag ?? [])];
 
+const expose: string[] = [...(configFromFile.expose ?? []), ...(cliOptions.expose ?? [])];
+
 const cliParams: Record<string, string> = omit(cliOptions, [
 	"label",
 	"labels",
@@ -166,6 +174,7 @@ const cliParams: Record<string, string> = omit(cliOptions, [
 	"customContent",
 	"extraContent",
 	"additionalTag",
+	"expose",
 ]);
 
 const setOptions: Options = {
@@ -175,6 +184,7 @@ const setOptions: Options = {
 	extraContent,
 	labels,
 	additionalTags,
+	expose,
 	envs: Object.entries(envs).map(([k, v]) => `${k}=${v}`),
 };
 
@@ -243,6 +253,24 @@ if (options.layerOwner) {
 		exitWithErrorIf(
 			true,
 			"layerOwner should be on format <number>:<number> (e.g. 1000:1000) but was: " + options.layerOwner,
+		);
+	}
+}
+
+if (options.expose && options.expose.length > 0) {
+	for (const port of options.expose) {
+		const match = port.match(/^(\d+)(?:\/(tcp|udp))?$/);
+		if (!match) {
+			exitWithErrorIf(
+				true,
+				`--expose value must be a port number or port/protocol (tcp or udp), e.g. 8080 or 8080/tcp, but was: ${port}`,
+			);
+			continue;
+		}
+		const portNum = parseInt(match[1], 10);
+		exitWithErrorIf(
+			portNum < 1 || portNum > 65535,
+			`--expose port must be between 1 and 65535, but was: ${portNum}`,
 		);
 	}
 }

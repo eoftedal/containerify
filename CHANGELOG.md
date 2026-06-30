@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Support for `--expose` to expose container ports. Can be specified multiple times. Accepts port-only (defaults to tcp) or port/protocol (e.g. `8080/tcp`, `53/udp`).
+
 ## [3.4.1] - 2026-06-30
 
 ### Changed
