@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.4.1] - 2026-06-30
+
+### Changed
+
+- Documented the `--writeDigestTo` option in the README.
+
 ## [3.4.0] - 2026-06-30
 
 ### Added

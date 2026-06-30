@@ -87,6 +87,7 @@ Options:
   --layerOwner <gid:uid>          Optional: Set specific gid and uid on files in the added layers
   --buildFolder <path>            Optional: Use a specific build folder when creating the image
   --layerCacheFolder <path>       Optional: Folder to cache base layers between builds
+  --writeDigestTo <path>          Optional: Write the resulting image digest to the file path provided
   --version                       Get containerify version
   -h, --help                      display help for command
 ```
