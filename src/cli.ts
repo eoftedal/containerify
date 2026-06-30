@@ -265,13 +265,13 @@ if (options.expose && options.expose.length > 0) {
 				true,
 				`--expose value must be a port number or port/protocol (tcp or udp), e.g. 8080 or 8080/tcp, but was: ${port}`,
 			);
-			continue;
+		} else {
+			const portNum = parseInt(match[1], 10);
+			exitWithErrorIf(
+				portNum < 1 || portNum > 65535,
+				`--expose port must be between 1 and 65535, but was: ${portNum}`,
+			);
 		}
-		const portNum = parseInt(match[1], 10);
-		exitWithErrorIf(
-			portNum < 1 || portNum > 65535,
-			`--expose port must be between 1 and 65535, but was: ${portNum}`,
-		);
 	}
 }
 
