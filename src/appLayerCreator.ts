@@ -182,6 +182,7 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 		if (options.nonDefaults.user) await addUserLayer(options, config, options.nonDefaults.user);
 		await addEnvsLayer(options, config);
 		await addLabelsLayer(options, config);
+		await addExposeLayer(options, config);
 		await addDataLayer(tmpdir, todir, options, config, manifest, Object.entries(options.customContent), "custom");
 	} else {
 		await addWorkdirLayer(options, config, options.workdir);
@@ -189,6 +190,7 @@ async function addAppLayers(options: Options, config: Config, todir: string, man
 		await addUserLayer(options, config, options.user);
 		await addEnvsLayer(options, config);
 		await addLabelsLayer(options, config);
+		await addExposeLayer(options, config);
 		const appFiles = (await fs.readdir(options.folder)).filter((l) => !ignore.includes(l));
 		const depLayerContent = appFiles.filter((l) => depLayerPossibles.includes(l));
 		const appLayerContent = appFiles.filter((l) => !depLayerPossibles.includes(l));
@@ -224,6 +226,19 @@ async function addLabelsLayer(options: Options, config: Config) {
 		addEmptyLayer(config, options, `LABELS ${JSON.stringify(options.labels)}`, (config) => {
 			config.config.Labels = options.labels;
 			config.container_config.Labels = options.labels;
+		});
+	}
+}
+
+async function addExposeLayer(options: Options, config: Config) {
+	if (options.expose && options.expose.length > 0) {
+		const exposedPorts: Record<string, Record<string, never>> = {};
+		for (const port of options.expose) {
+			const portKey = port.includes("/") ? port : `${port}/tcp`;
+			exposedPorts[portKey] = {};
+		}
+		addEmptyLayer(config, options, `EXPOSE ${options.expose.join(" ")}`, (config) => {
+			config.config.ExposedPorts = { ...(config.config.ExposedPorts ?? {}), ...exposedPorts };
 		});
 	}
 }
