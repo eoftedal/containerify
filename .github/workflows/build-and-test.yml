@@ -11,16 +11,26 @@ jobs:
     permissions:
       contents: read
 
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x]
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@master
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
 
       - name: Cache node modules
         uses: actions/cache@v3
         with:
           path: ./node_modules
-          key: ${{ runner.OS }}-build-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.OS }}-build-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
+            ${{ runner.OS }}-build-${{ matrix.node-version }}-
             ${{ runner.OS }}-build-
             ${{ runner.OS }}-
 

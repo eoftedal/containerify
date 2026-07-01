@@ -1,6 +1,13 @@
 # Changelog
 
-## [3.6.0] - 2026-07-01
+## [4.0.0] - 2026-07-02
+
+### Breaking changes
+
+- **Requires Node.js >= 22.** Older Node versions are no longer supported (`engines` is set accordingly).
+- **`--layerOwner` changes image digests.** It previously had no effect at all with tar 7 (the uid/gid were never applied) and forced epoch timestamps. It now correctly sets the uid/gid and honors `--setTimeStamp` / `--preserveTimeStamp`, so images built with `--layerOwner` get different - and now reproducible - digests than before.
+- **A registry-less `--from` / `--to` now errors.** Values such as `--from node:alpine` (no registry host) previously produced a broken URL; they now fail fast with a clear message. Use `--fromImage` / `--toImage` for images without a registry host.
+- **Corrupt base-image layers now abort the build.** Downloaded (and cached) layers are verified against their digest, and a mismatch throws instead of being silently reused.
 
 ### Added
 
@@ -27,7 +34,6 @@
 ### Changed
 
 - Removed the `fs-extra` runtime dependency; runtime dependencies are now just `commander` and `tar`.
-- Require Node.js >= 22 (`engines`).
 - `npm run check` now also runs `prettier --check .`.
 
 ## [3.5.1] - 2026-07-01
