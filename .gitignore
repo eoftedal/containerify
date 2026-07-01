@@ -4,3 +4,4 @@ tmp/
 lib/
 .DS_Store
 tests/integration/app/package-lock.json
+IMPROVEMENT_PLAN.md

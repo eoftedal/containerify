@@ -103,26 +103,26 @@ program
 	.option("--buildFolder <path>", "Optional: Use a specific build folder when creating the image")
 	.option("--layerCacheFolder <path>", "Optional: Folder to cache base layers between builds")
 	.option("--writeDigestTo <path>", "Optional: Write the resulting image digest to the file path provided")
-	.option("--healtcheck-cmd <cmd>", "Optional: Health check command to run inside the container")
+	.option("--healthcheck-cmd <cmd>", "Optional: Health check command to run inside the container")
 	.option(
-		"--healtcheck-interval <duration>",
-		"Optional: Time between running the check, e.g. 30s, 1m (default: 30s). Requires --healtcheck-cmd.",
+		"--healthcheck-interval <duration>",
+		"Optional: Time between running the check, e.g. 30s, 1m (default: 30s). Requires --healthcheck-cmd.",
 	)
 	.option(
-		"--healtcheck-timeout <duration>",
-		"Optional: Maximum time to allow one check to run, e.g. 10s (default: 30s). Requires --healtcheck-cmd.",
+		"--healthcheck-timeout <duration>",
+		"Optional: Maximum time to allow one check to run, e.g. 10s (default: 30s). Requires --healthcheck-cmd.",
 	)
 	.option(
-		"--healtcheck-start-period <duration>",
-		"Optional: Start period before retries count, e.g. 5s (default: 0s). Requires --healtcheck-cmd.",
+		"--healthcheck-start-period <duration>",
+		"Optional: Start period before retries count, e.g. 5s (default: 0s). Requires --healthcheck-cmd.",
 	)
 	.option(
-		"--healtcheck-start-interval <duration>",
-		"Optional: Time between checks during the start period, e.g. 5s (default: 5s). Requires --healtcheck-cmd.",
+		"--healthcheck-start-interval <duration>",
+		"Optional: Time between checks during the start period, e.g. 5s (default: 5s). Requires --healthcheck-cmd.",
 	)
 	.option(
-		"--healtcheck-retries <n>",
-		"Optional: Consecutive failures needed to report unhealthy (default: 3). Requires --healtcheck-cmd.",
+		"--healthcheck-retries <n>",
+		"Optional: Consecutive failures needed to report unhealthy (default: 3). Requires --healthcheck-cmd.",
 	)
 	.version(VERSION, "--version", "Get containerify version");
 
@@ -288,36 +288,33 @@ if (options.expose && options.expose.length > 0) {
 			);
 		} else {
 			const portNum = parseInt(match[1], 10);
-			exitWithErrorIf(
-				portNum < 1 || portNum > 65535,
-				`--expose port must be between 1 and 65535, but was: ${portNum}`,
-			);
+			exitWithErrorIf(portNum < 1 || portNum > 65535, `--expose port must be between 1 and 65535, but was: ${portNum}`);
 		}
 	}
 }
 
-const healtcheckDurationOptions: Array<[string, string | undefined]> = [
-	["--healtcheck-interval", options.healtcheckInterval],
-	["--healtcheck-timeout", options.healtcheckTimeout],
-	["--healtcheck-start-period", options.healtcheckStartPeriod],
-	["--healtcheck-start-interval", options.healtcheckStartInterval],
+const healthcheckDurationOptions: Array<[string, string | undefined]> = [
+	["--healthcheck-interval", options.healthcheckInterval],
+	["--healthcheck-timeout", options.healthcheckTimeout],
+	["--healthcheck-start-period", options.healthcheckStartPeriod],
+	["--healthcheck-start-interval", options.healthcheckStartInterval],
 ];
-const healtcheckExtraOptions: Array<string | undefined> = [
-	...healtcheckDurationOptions.map(([, v]) => v),
-	options.healtcheckRetries,
+const healthcheckExtraOptions: Array<string | undefined> = [
+	...healthcheckDurationOptions.map(([, v]) => v),
+	options.healthcheckRetries,
 ];
 exitWithErrorIf(
-	!options.healtcheckCmd && healtcheckExtraOptions.some(Boolean),
-	"--healtcheck-cmd must be set when using other --healtcheck-* options",
+	!options.healthcheckCmd && healthcheckExtraOptions.some(Boolean),
+	"--healthcheck-cmd must be set when using other --healthcheck-* options",
 );
-if (options.healtcheckRetries !== undefined) {
+if (options.healthcheckRetries !== undefined) {
 	exitWithErrorIf(
-		!/^\d+$/.test(options.healtcheckRetries) || parseInt(options.healtcheckRetries, 10) < 1,
-		`--healtcheck-retries must be a positive integer, but was: ${options.healtcheckRetries}`,
+		!/^\d+$/.test(options.healthcheckRetries) || parseInt(options.healthcheckRetries, 10) < 1,
+		`--healthcheck-retries must be a positive integer, but was: ${options.healthcheckRetries}`,
 	);
 }
 const durationPattern = /^(\d+h)?(\d+m)?(\d+s)?$/;
-for (const [flag, value] of healtcheckDurationOptions) {
+for (const [flag, value] of healthcheckDurationOptions) {
 	if (value !== undefined) {
 		exitWithErrorIf(
 			!durationPattern.test(value) || value === "",

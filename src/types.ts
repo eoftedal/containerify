@@ -117,12 +117,12 @@ export type Options = {
 		entrypoint?: string;
 	};
 	writeDigestTo?: string;
-	healtcheckCmd?: string;
-	healtcheckInterval?: string;
-	healtcheckTimeout?: string;
-	healtcheckStartPeriod?: string;
-	healtcheckStartInterval?: string;
-	healtcheckRetries?: string;
+	healthcheckCmd?: string;
+	healthcheckInterval?: string;
+	healthcheckTimeout?: string;
+	healthcheckStartPeriod?: string;
+	healthcheckStartInterval?: string;
+	healthcheckRetries?: string;
 };
 
 export enum InsecureRegistrySupport {

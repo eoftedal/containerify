@@ -255,16 +255,16 @@ function parseDuration(duration: string): number {
 }
 
 async function addHealthcheckLayer(options: Options, config: Config) {
-	if (!options.healtcheckCmd) return;
+	if (!options.healthcheckCmd) return;
 	const healthcheck: HealthCheck = {
-		Test: ["CMD-SHELL", options.healtcheckCmd],
+		Test: ["CMD-SHELL", options.healthcheckCmd],
 	};
-	if (options.healtcheckInterval) healthcheck.Interval = parseDuration(options.healtcheckInterval);
-	if (options.healtcheckTimeout) healthcheck.Timeout = parseDuration(options.healtcheckTimeout);
-	if (options.healtcheckStartPeriod) healthcheck.StartPeriod = parseDuration(options.healtcheckStartPeriod);
-	if (options.healtcheckStartInterval) healthcheck.StartInterval = parseDuration(options.healtcheckStartInterval);
-	if (options.healtcheckRetries) healthcheck.Retries = parseInt(options.healtcheckRetries, 10);
-	addEmptyLayer(config, options, `HEALTHCHECK CMD ${options.healtcheckCmd}`, (config) => {
+	if (options.healthcheckInterval) healthcheck.Interval = parseDuration(options.healthcheckInterval);
+	if (options.healthcheckTimeout) healthcheck.Timeout = parseDuration(options.healthcheckTimeout);
+	if (options.healthcheckStartPeriod) healthcheck.StartPeriod = parseDuration(options.healthcheckStartPeriod);
+	if (options.healthcheckStartInterval) healthcheck.StartInterval = parseDuration(options.healthcheckStartInterval);
+	if (options.healthcheckRetries) healthcheck.Retries = parseInt(options.healthcheckRetries, 10);
+	addEmptyLayer(config, options, `HEALTHCHECK CMD ${options.healthcheckCmd}`, (config) => {
 		config.config.Healthcheck = healthcheck;
 	});
 }

@@ -43,12 +43,12 @@ echo ""
 
 echo "Building image 5 (with healthcheck)..."
 ../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v5.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache \
-  --healtcheck-cmd "curl -f http://localhost:3000/health || exit 1" \
-  --healtcheck-interval 30s \
-  --healtcheck-timeout 10s \
-  --healtcheck-start-period 5s \
-  --healtcheck-start-interval 5s \
-  --healtcheck-retries 3 > /dev/null
+  --healthcheck-cmd "curl -f http://localhost:3000/health || exit 1" \
+  --healthcheck-interval 30s \
+  --healthcheck-timeout 10s \
+  --healthcheck-start-period 5s \
+  --healthcheck-start-interval 5s \
+  --healthcheck-retries 3 > /dev/null
 echo ""
 echo ""
 

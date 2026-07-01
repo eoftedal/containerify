@@ -1,5 +1,3 @@
- 
-
 let debugEnabled = false;
 
 type Logger = typeof console.log;

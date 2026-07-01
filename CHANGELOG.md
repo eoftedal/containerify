@@ -1,11 +1,17 @@
 # Changelog
 
+## [3.5.1] - 2026-07-01
+
+### Bugfix
+
+- Typo in healthcheck related args
+
 ## [3.5.0] - 2026-06-30
 
 ### Added
 
 - Support for `--expose` to expose container ports. Can be specified multiple times. Accepts port-only (defaults to tcp) or port/protocol (e.g. `8080/tcp`, `53/udp`).
-- Support for `--healtcheck-cmd` to set a health check command. Additional options `--healtcheck-interval`, `--healtcheck-timeout`, `--healtcheck-start-period`, `--healtcheck-start-interval`, and `--healtcheck-retries` require `--healtcheck-cmd` to be set.
+- Support for `--healthcheck-cmd` to set a health check command. Additional options `--healthcheck-interval`, `--healthcheck-timeout`, `--healthcheck-start-period`, `--healthcheck-start-interval`, and `--healthcheck-retries` require `--healthcheck-cmd` to be set.
 
 ## [3.4.1] - 2026-06-30
 
