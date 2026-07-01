@@ -89,6 +89,7 @@ Options:
   --buildFolder <path>            Optional: Use a specific build folder when creating the image
   --layerCacheFolder <path>       Optional: Folder to cache base layers between builds
   --writeDigestTo <path>          Optional: Write the resulting image digest to the file path provided
+  --writePrefixedDigestTo <path>  Optional: Write the resulting image digest, prefixed with sha256:, to the file path provided
   --healthcheck-cmd <cmd>          Optional: Health check command to run inside the container
   --healthcheck-interval <dur>     Optional: Time between running the check, e.g. 30s, 1m (default: 30s). Requires --healthcheck-cmd.
   --healthcheck-timeout <dur>      Optional: Maximum time to allow one check to run, e.g. 10s (default: 30s). Requires --healthcheck-cmd.

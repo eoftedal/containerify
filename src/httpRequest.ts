@@ -21,10 +21,6 @@ export function createHttpOptions(method: HttpMethod, url: string, headers: Outg
 		headers: headers,
 		method: method,
 	};
-	if (url.includes("X-Amz-Algorithm") && method == "GET") {
-		//We are using a pre-signed URL, so we don't need to send the Authorization header
-		(options.headers as OutgoingHttpHeaders)["Authorization"] = "";
-	}
 	return options;
 }
 
@@ -37,14 +33,17 @@ export function request(
 	options: https.RequestOptions,
 	allowInsecure: InsecureRegistrySupport,
 	callback: (res: http.IncomingMessage) => void,
+	onError?: (e: Error) => void,
 ) {
 	if (allowInsecure == InsecureRegistrySupport.YES) options.rejectUnauthorized = false;
 	const req = (options.protocol == "https:" ? https : http).request(options, (res) => {
 		callback(res);
 	});
 	req.on("error", (e) => {
+		// Never throw from inside the event handler - that produces an uncaught
+		// exception that kills the process and skips cleanup. Propagate instead.
 		logger.error("ERROR: " + e, options.method, options.path);
-		throw e;
+		if (onError) onError(e);
 	});
 	return req;
 }
@@ -86,10 +85,17 @@ export async function dlJson<T>(
 	allowInsecure: InsecureRegistrySupport,
 ): Promise<T> {
 	const data = await dl(uri, headers, allowInsecure);
-	return JSON.parse(Buffer.from(data).toString("utf-8"));
+	return JSON.parse(data);
 }
 
 type Callback = (result: { error: string } | { res: http.IncomingMessage }) => void;
+
+function stripAuth(headers: OutgoingHttpHeaders): OutgoingHttpHeaders {
+	// Remove any authorization header (regardless of casing) before following a
+	// redirect to a different host, so we don't leak credentials to third parties
+	// (e.g. Docker Hub -> AWS S3 presigned URLs).
+	return Object.fromEntries(Object.entries(headers).filter(([k]) => k.toLowerCase() !== "authorization"));
+}
 
 export function followRedirects(
 	uri: string,
@@ -100,13 +106,20 @@ export function followRedirects(
 ) {
 	logger.debug("rc", uri);
 	const options = createHttpOptions("GET", uri, headers);
-	request(options, allowInsecure, (res) => {
-		if (redirectCodes.includes(res.statusCode ?? 0)) {
-			if (count > 10) return cb({ error: "Too many redirects for " + uri });
-			const location = res.headers.location;
-			if (!location) return cb({ error: "Redirect, but missing location header" });
-			return followRedirects(location, headers, allowInsecure, cb, count + 1);
-		}
-		cb({ res });
-	}).end();
+	request(
+		options,
+		allowInsecure,
+		(res) => {
+			if (redirectCodes.includes(res.statusCode ?? 0)) {
+				if (count > 10) return cb({ error: "Too many redirects for " + uri });
+				const location = res.headers.location;
+				if (!location) return cb({ error: "Redirect, but missing location header" });
+				const target = new URL(location, uri);
+				const nextHeaders = target.host === new URL(uri).host ? headers : stripAuth(headers);
+				return followRedirects(target.toString(), nextHeaders, allowInsecure, cb, count + 1);
+			}
+			cb({ res });
+		},
+		(e) => cb({ error: String(e) }),
+	).end();
 }

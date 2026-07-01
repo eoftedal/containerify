@@ -1,0 +1,1 @@
+auto-detected config-file build fixture

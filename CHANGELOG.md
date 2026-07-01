@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.6.0] - 2026-07-01
+
+### Added
+
+- `--writePrefixedDigestTo` to write the resulting image digest with the `sha256:` prefix (`--writeDigestTo` still writes bare hex).
+- Additional `--platform` architecture mappings: `ppc64le`, `s390x`, `riscv64`.
+
+### Fixed
+
+- Replaced the undeclared `minizlib` dependency with Node's built-in `zlib`, so installs work under strict/pnpm setups.
+- `--toDocker` combined with `--toTar` no longer crashes with `EEXIST` on the temporary `totar` directory.
+- Network/socket errors are now propagated through the normal rejection paths instead of throwing an uncaught exception that killed the process and skipped cleanup.
+- Layer cache entries are fully written before being reused, and downloaded layers are verified against their digest (on both download and cache hit), preventing silent reuse of truncated/corrupt layers.
+- `getUploadUrl` no longer rejects after already resolving on a valid `202` response.
+- Config-file auto-detection now reads `containerify.json` from `--folder` instead of the current working directory.
+- Health-check (and other dashed) options are now accepted from the config file (keys are matched using commander's attribute names).
+- `--customContent` and `--extraContent` paths are validated relative to `--folder`.
+- `--from docker.io/node:alpine` (and other official images) now resolve to the `library/` namespace; a registry-less `--from node:alpine` now fails with a clear error.
+- `--buildFolder` is now honored as the working directory (previously parsed and documented but ignored).
+- `--layerOwner` now actually applies the given uid/gid (it was a no-op with tar 7, whose `onWriteEntry` runs before the entry header exists) and no longer silently discards `--setTimeStamp` / `--preserveTimeStamp` or produces non-reproducible layers.
+- `addEnvsLayer` no longer double-applies environment variables or crashes on base images without an existing `Env` list.
+- The `authorization` header is stripped when a request is redirected to a different host (replaces the AWS-specific presigned-URL workaround).
+- The temporary build directory is now removed even when a build fails.
+
+### Changed
+
+- Removed the `fs-extra` runtime dependency; runtime dependencies are now just `commander` and `tar`.
+- Require Node.js >= 22 (`engines`).
+- `npm run check` now also runs `prettier --check .`.
+
 ## [3.5.1] - 2026-07-01
 
 ### Bugfix

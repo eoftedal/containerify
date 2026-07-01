@@ -3,7 +3,6 @@
 import * as os from "os";
 import { Command } from "commander";
 import * as path from "path";
-import * as fse from "fs-extra";
 import * as fs from "fs";
 
 import { DEFAULT_DOCKER_REGISTRY, createRegistry, parseFullImageUrl } from "./registry";
@@ -103,6 +102,10 @@ program
 	.option("--buildFolder <path>", "Optional: Use a specific build folder when creating the image")
 	.option("--layerCacheFolder <path>", "Optional: Folder to cache base layers between builds")
 	.option("--writeDigestTo <path>", "Optional: Write the resulting image digest to the file path provided")
+	.option(
+		"--writePrefixedDigestTo <path>",
+		"Optional: Write the resulting image digest, prefixed with sha256:, to the file path provided",
+	)
 	.option("--healthcheck-cmd <cmd>", "Optional: Health check command to run inside the container")
 	.option(
 		"--healthcheck-interval <duration>",
@@ -134,7 +137,9 @@ function setKeyValue(target: Record<string, string>, keyValue: string, separator
 }
 
 const cliOptions = program.opts();
-const keys = program.options.map((x) => x.long?.replace("--", ""));
+// Use commander's attributeName() so config-file keys are matched against the
+// same camelCase names the code reads (e.g. healthcheckCmd, not healthcheck-cmd).
+const keys = program.options.map((x) => x.attributeName());
 
 const defaultOptions = {
 	workdir: "/app",
@@ -148,8 +153,8 @@ if (cliOptions.file && !fs.existsSync(cliOptions.file)) {
 	process.exit(1);
 }
 
-if (!cliOptions.file && fs.existsSync(`${cliOptions.folder}/containerify.json`)) {
-	cliOptions.file = "containerify.json";
+if (!cliOptions.file && cliOptions.folder && fs.existsSync(path.join(cliOptions.folder, "containerify.json"))) {
+	cliOptions.file = path.join(cliOptions.folder, "containerify.json");
 }
 
 const configFromFile = cliOptions.file ? JSON.parse(fs.readFileSync(cliOptions.file, "utf-8")) : {};
@@ -242,14 +247,22 @@ exitWithErrorIf(!!options.registry && !!options.toRegistry, "Do not set both --r
 exitWithErrorIf(!!options.to && !!options.toRegistry, "Do not set both --toRegistry and --to");
 exitWithErrorIf(!!options.registry && !!options.to, "Do not set both --registry and --to");
 if (options.from) {
-	const { registry, image } = parseFullImageUrl(options.from);
-	options.fromRegistry = registry;
-	options.fromImage = image;
+	try {
+		const { registry, image } = parseFullImageUrl(options.from);
+		options.fromRegistry = registry;
+		options.fromImage = image;
+	} catch (e) {
+		exitWithErrorIf(true, e instanceof Error ? e.message : String(e));
+	}
 }
 if (options.to) {
-	const { registry, image } = parseFullImageUrl(options.to);
-	options.toRegistry = registry;
-	options.toImage = image;
+	try {
+		const { registry, image } = parseFullImageUrl(options.to);
+		options.toRegistry = registry;
+		options.toImage = image;
+	} catch (e) {
+		exitWithErrorIf(true, e instanceof Error ? e.message : String(e));
+	}
 }
 
 exitWithErrorIf(!!options.token && !!options.fromToken, "Do not set both --token and --fromToken");
@@ -347,12 +360,22 @@ exitWithErrorIf(
 if (options.toRegistry && !options.toRegistry.endsWith("/")) options.toRegistry += "/";
 if (options.fromRegistry && !options.fromRegistry.endsWith("/")) options.fromRegistry += "/";
 
-if (!options.fromRegistry && !options.fromImage?.split(":")?.[0]?.includes("/")) {
+// Official Docker Hub images live under the implicit `library/` namespace. Apply
+// the prefix whenever we're pulling from Docker Hub (default registry, whether it
+// was left unset or set explicitly via --from/--fromRegistry) and the image path
+// has no namespace of its own.
+if (
+	(options.fromRegistry === undefined || options.fromRegistry === DEFAULT_DOCKER_REGISTRY) &&
+	!options.fromImage?.split(":")?.[0]?.includes("/")
+) {
 	options.fromImage = "library/" + options.fromImage;
 }
 
 Object.keys(options.customContent).forEach((p) => {
-	exitWithErrorIf(!fs.existsSync(p), `Could not find ${p} in the base folder ${options.folder}`);
+	exitWithErrorIf(
+		!fs.existsSync(path.join(options.folder, p)),
+		`Could not find ${p} in the base folder ${options.folder}`,
+	);
 });
 
 if (options.layerCacheFolder) {
@@ -370,66 +393,90 @@ if (options.layerCacheFolder) {
 }
 
 Object.keys(options.extraContent).forEach((k) => {
-	exitWithErrorIf(!fs.existsSync(options.folder + k), `Could not find '${k}' in the folder ${options.folder}`);
+	exitWithErrorIf(
+		!fs.existsSync(path.join(options.folder, k)),
+		`Could not find '${k}' in the folder ${options.folder}`,
+	);
 });
 
 async function run(options: Options) {
-	if (!(await fse.pathExists(options.folder))) throw new Error(`No such folder: ${options.folder}`);
+	if (!fs.existsSync(options.folder)) throw new Error(`No such folder: ${options.folder}`);
 
-	const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "containerify-"));
+	let tmpdir: string;
+	if (options.buildFolder) {
+		fs.mkdirSync(options.buildFolder, { recursive: true });
+		tmpdir = options.buildFolder;
+	} else {
+		tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "containerify-"));
+	}
 	logger.debug("Using " + tmpdir);
-	const fromdir = await ensureEmptyDir(path.join(tmpdir, "from"));
-	const todir = await ensureEmptyDir(path.join(tmpdir, "to"));
-	const allowInsecure = options.allowInsecureRegistries ? InsecureRegistrySupport.YES : InsecureRegistrySupport.NO;
-	const fromRegistryUrl = options.fromRegistry ?? DEFAULT_DOCKER_REGISTRY;
-	const fromRegistry = await createRegistry(fromRegistryUrl, options.fromImage, allowInsecure, options.fromToken);
-	const originalManifest = await fromRegistry.download(
-		options.fromImage,
-		fromdir,
-		getPreferredPlatform(options.platform),
-		options.layerCacheFolder,
-	);
-
-	const manifestDescriptor = await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
-
-	const toImagePath = parseImage(options.toImage).path;
-	const repoTags = [options.toImage, ...options.additionalTags.map((tag) => `${toImagePath}:${tag}`)];
-
-	if (options.toDocker) {
-		if (!(await dockerExporter.isAvailable())) {
-			throw new Error("Docker executable not found on path. Unable to export to local docker registry.");
-		}
-		const dockerDir = path.join(tmpdir, "toDocker");
-		await tarExporter.saveToTar(todir, tmpdir, dockerDir, repoTags, options);
-		await dockerExporter.load(dockerDir);
-	}
-	if (options.toTar) {
-		await tarExporter.saveToTar(todir, tmpdir, options.toTar, repoTags, options);
-	}
-	if (options.toRegistry) {
-		const toRegistry = await createRegistry(
-			options.toRegistry,
-			options.toImage,
-			allowInsecure,
-			options.toToken,
-			options.optimisticToRegistryCheck,
-		);
-		await toRegistry.upload(
-			options.toImage,
-			todir,
-			options.doCrossMount,
-			originalManifest,
+	try {
+		const fromdir = await ensureEmptyDir(path.join(tmpdir, "from"));
+		const todir = await ensureEmptyDir(path.join(tmpdir, "to"));
+		const allowInsecure = options.allowInsecureRegistries ? InsecureRegistrySupport.YES : InsecureRegistrySupport.NO;
+		const fromRegistryUrl = options.fromRegistry ?? DEFAULT_DOCKER_REGISTRY;
+		const fromRegistry = await createRegistry(fromRegistryUrl, options.fromImage, allowInsecure, options.fromToken);
+		const originalManifest = await fromRegistry.download(
 			options.fromImage,
-			options.additionalTags,
+			fromdir,
+			getPreferredPlatform(options.platform),
+			options.layerCacheFolder,
 		);
+
+		const manifestDescriptor = await appLayerCreator.addLayers(tmpdir, fromdir, todir, options);
+
+		const toImagePath = parseImage(options.toImage).path;
+		const repoTags = [options.toImage, ...options.additionalTags.map((tag) => `${toImagePath}:${tag}`)];
+
+		if (options.toDocker) {
+			if (!(await dockerExporter.isAvailable())) {
+				throw new Error("Docker executable not found on path. Unable to export to local docker registry.");
+			}
+			const dockerDir = path.join(tmpdir, "toDocker");
+			await tarExporter.saveToTar(todir, tmpdir, dockerDir, repoTags, options);
+			await dockerExporter.load(dockerDir);
+		}
+		if (options.toTar) {
+			await tarExporter.saveToTar(todir, tmpdir, options.toTar, repoTags, options);
+		}
+		if (options.toRegistry) {
+			const toRegistry = await createRegistry(
+				options.toRegistry,
+				options.toImage,
+				allowInsecure,
+				options.toToken,
+				options.optimisticToRegistryCheck,
+			);
+			await toRegistry.upload(
+				options.toImage,
+				todir,
+				options.doCrossMount,
+				originalManifest,
+				options.fromImage,
+				options.additionalTags,
+			);
+		}
+
+		// The digest from addLayers is prefixed (sha256:...). --writeDigestTo keeps
+		// its historical bare-hex output; --writePrefixedDigestTo writes it as-is.
+		if (options.writeDigestTo) {
+			const bareDigest = manifestDescriptor.digest.replace(/^sha256:/, "");
+			logger.debug(`Writing digest ${bareDigest} to ${options.writeDigestTo}`);
+			fs.writeFileSync(options.writeDigestTo, bareDigest);
+		}
+		if (options.writePrefixedDigestTo) {
+			logger.debug(`Writing digest ${manifestDescriptor.digest} to ${options.writePrefixedDigestTo}`);
+			fs.writeFileSync(options.writePrefixedDigestTo, manifestDescriptor.digest);
+		}
+	} finally {
+		// Always clean up an auto-created temp dir, even on failure. A user-supplied
+		// --buildFolder is left in place so its artifacts can be inspected.
+		if (!options.buildFolder) {
+			logger.debug(`Deleting ${tmpdir} ...`);
+			await fs.promises.rm(tmpdir, { recursive: true, force: true });
+		}
 	}
-	logger.debug(`Deleting ${tmpdir} ...`);
-	await fse.remove(tmpdir);
 	logger.debug("Done");
-	if (options.writeDigestTo) {
-		logger.debug(`Writing digest ${manifestDescriptor.digest} to ${options.writeDigestTo}`);
-		fs.writeFileSync(options.writeDigestTo, manifestDescriptor.digest);
-	}
 }
 
 logger.debug("Running with config:", options);
@@ -437,6 +484,10 @@ logger.debug("Running with config:", options);
 run(options as Options)
 	.then(() => {
 		logger.info("Done!");
+		// Exit explicitly. run() has already awaited every write (including the
+		// layer cache copies - see dlToFile), so nothing is mid-flush here. This
+		// avoids waiting ~60s for keep-alive sockets from the registry to time out
+		// before the event loop drains on its own.
 		process.exit(0);
 	})
 	.catch((error) => {

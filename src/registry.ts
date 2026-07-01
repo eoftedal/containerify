@@ -2,7 +2,6 @@ import * as https from "https";
 import * as fss from "fs";
 import { promises as fs } from "fs";
 import * as path from "path";
-import * as fse from "fs-extra";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
@@ -33,45 +32,49 @@ import {
 } from "./httpRequest";
 import { OutgoingHttpHeaders } from "http";
 
-function dlToFile(
+function downloadToFile(
 	uri: string,
 	file: string,
 	headers: OutgoingHttpHeaders,
 	allowInsecure: InsecureRegistrySupport,
-	cacheFolder?: string,
-	skipCache = false,
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const [filename] = file.split("/").slice(-1);
-		if (cacheFolder && !skipCache) {
-			fss
-				.createReadStream(cacheFolder + filename)
-				.on("error", () => {
-					logger.debug("Not found in layer cache " + cacheFolder + filename + " - Downloading...");
-					dlToFile(uri, file, headers, allowInsecure, cacheFolder, true).then(() => resolve());
-				})
-				.pipe(fss.createWriteStream(file))
-				.on("finish", () => {
-					logger.debug("Found in layer cache " + cacheFolder + filename);
-					resolve();
-				});
-			return;
-		}
 		followRedirects(uri, headers, allowInsecure, (result) => {
 			if ("error" in result) return reject(result.error);
 			const { res } = result;
 			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
 			if (!isOk(res.statusCode ?? 0)) return reject(toError(res));
-			res.pipe(fss.createWriteStream(file)).on("finish", () => {
+			const out = fss.createWriteStream(file);
+			out.on("error", reject);
+			res.on("error", reject);
+			res.pipe(out).on("finish", () => {
 				logger.debug("Done " + file + " - " + res.headers["content-length"] + " bytes ");
-				if (cacheFolder) {
-					logger.debug(`Writing ${file} to cache ${cacheFolder + filename}`);
-					fss.createReadStream(file).pipe(fss.createWriteStream(cacheFolder + filename));
-				}
 				resolve();
 			});
 		});
 	});
+}
+
+async function dlToFile(
+	uri: string,
+	file: string,
+	headers: OutgoingHttpHeaders,
+	allowInsecure: InsecureRegistrySupport,
+	cacheFolder?: string,
+): Promise<void> {
+	const cacheFile = cacheFolder ? path.join(cacheFolder, path.basename(file)) : undefined;
+	if (cacheFile && fss.existsSync(cacheFile)) {
+		logger.debug("Found in layer cache " + cacheFile);
+		await fs.copyFile(cacheFile, file);
+		return;
+	}
+	await downloadToFile(uri, file, headers, allowInsecure);
+	if (cacheFile) {
+		// Fully write the file before copying it into the cache so a later run
+		// can't pick up a truncated entry via digest-named lookup.
+		logger.debug(`Writing ${file} to cache ${cacheFile}`);
+		await fs.copyFile(file, cacheFile);
+	}
 }
 
 function checkIfLayerExists(
@@ -88,28 +91,33 @@ function checkIfLayerExists(
 	return new Promise((resolve, reject) => {
 		logger.debug(`HEAD ${url}`);
 		const options = createHttpOptions("HEAD", url, headers);
-		request(options, allowInsecure, (res) => {
-			logger.debug(`HEAD ${url}`, res.statusCode);
-			waitForResponseEnd(res, (data) => {
-				// Not found
-				if (res.statusCode == 404) return resolve(false);
-				// OK
-				if (res.statusCode == 200) return resolve(true);
-				// Redirected
-				if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
-					if (optimisticCheck) return resolve(true);
-					return resolve(checkIfLayerExists(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
-				}
-				// Unauthorized
-				// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
-				if (res.statusCode == 401) {
-					return resolve(false);
-				}
-				// Other error
-				logger.error(`HEAD ${url}`, res.statusCode, res.statusMessage, data.toString());
-				reject(toError(res));
-			});
-		}).end();
+		request(
+			options,
+			allowInsecure,
+			(res) => {
+				logger.debug(`HEAD ${url}`, res.statusCode);
+				waitForResponseEnd(res, (data) => {
+					// Not found
+					if (res.statusCode == 404) return resolve(false);
+					// OK
+					if (res.statusCode == 200) return resolve(true);
+					// Redirected
+					if (redirectCodes.includes(res.statusCode ?? 0) && res.headers.location) {
+						if (optimisticCheck) return resolve(true);
+						return resolve(checkIfLayerExists(res.headers.location, headers, allowInsecure, optimisticCheck, ++depth));
+					}
+					// Unauthorized
+					// Possibly related to https://gitlab.com/gitlab-org/gitlab/-/issues/23132
+					if (res.statusCode == 401) {
+						return resolve(false);
+					}
+					// Other error
+					logger.error(`HEAD ${url}`, res.statusCode, res.statusMessage, data.toString());
+					reject(toError(res));
+				});
+			},
+			reject,
+		).end();
 	});
 }
 
@@ -132,16 +140,21 @@ function uploadContent(
 		if (auth) headers.authorization = auth;
 		const options = createHttpOptions("PUT", url, headers);
 		logger.debug(options.method, url);
-		const req = request(options, allowInsecure, (res) => {
-			logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
-			if ([200, 201, 202, 203].includes(res.statusCode ?? 0)) {
-				resolve();
-			} else {
-				waitForResponseEnd(res, (data) => {
-					reject(`Error uploading to ${uploadUrl}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`);
-				});
-			}
-		});
+		const req = request(
+			options,
+			allowInsecure,
+			(res) => {
+				logger.debug(res.statusCode, res.statusMessage, res.headers["content-type"], res.headers["content-length"]);
+				if ([200, 201, 202, 203].includes(res.statusCode ?? 0)) {
+					resolve();
+				} else {
+					waitForResponseEnd(res, (data) => {
+						reject(`Error uploading to ${uploadUrl}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`);
+					});
+				}
+			},
+			(e) => reject(`Error uploading to ${uploadUrl}: ${e}`),
+		);
 		fss
 			.createReadStream(file)
 			.pipe(req)
@@ -236,37 +249,43 @@ export async function createRegistry(
 				method: "POST",
 			};
 			if (token) options.headers = { authorization: token };
-			request(options, allowInsecure, (res) => {
-				logger.debug("POST", `${url}`, res.statusCode);
-				if (res.statusCode == 202) {
-					const { location } = res.headers;
-					if (location) {
-						if (location.startsWith("http")) {
-							resolve({ uploadUrl: location });
+			request(
+				options,
+				allowInsecure,
+				(res) => {
+					logger.debug("POST", `${url}`, res.statusCode);
+					if (res.statusCode == 202) {
+						const { location } = res.headers;
+						if (location) {
+							if (location.startsWith("http")) {
+								resolve({ uploadUrl: location });
+							} else {
+								const regURL = new URL(registryBaseUrl);
+								resolve({
+									uploadUrl: `${regURL.protocol}//${regURL.hostname}${regURL.port ? ":" + regURL.port : ""}${location}`,
+								});
+							}
 						} else {
-							const regURL = new URL(registryBaseUrl);
-							resolve({
-								uploadUrl: `${regURL.protocol}//${regURL.hostname}${regURL.port ? ":" + regURL.port : ""}${location}`,
-							});
+							reject("Missing location for 202");
 						}
+					} else if (mountParameters && res.statusCode == 201) {
+						const returnedDigest = res.headers["docker-content-digest"];
+						if (returnedDigest && returnedDigest != mountParameters.mount) {
+							reject(
+								`ERROR: Layer mounted with wrong digest: Expected ${mountParameters.mount} but got ${returnedDigest}`,
+							);
+						}
+						resolve({ mountSuccess: true });
+					} else {
+						waitForResponseEnd(res, (data) => {
+							reject(
+								`Error getting upload URL from ${url}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`,
+							);
+						});
 					}
-					reject("Missing location for 202");
-				} else if (mountParameters && res.statusCode == 201) {
-					const returnedDigest = res.headers["docker-content-digest"];
-					if (returnedDigest && returnedDigest != mountParameters.mount) {
-						reject(
-							`ERROR: Layer mounted with wrong digest: Expected ${mountParameters.mount} but got ${returnedDigest}`,
-						);
-					}
-					resolve({ mountSuccess: true });
-				} else {
-					waitForResponseEnd(res, (data) => {
-						reject(
-							`Error getting upload URL from ${url}. Got ${res.statusCode} ${res.statusMessage}:\n${data.toString()}`,
-						);
-					});
-				}
-			}).end();
+				},
+				reject,
+			).end();
 		});
 	}
 
@@ -344,14 +363,22 @@ export async function createRegistry(
 		cacheFolder?: string,
 	): Promise<string> {
 		const file = getHash(layer.digest) + getLayerTypeFileEnding(layer);
+		const fullPath = path.join(folder, file);
 
 		await dlToFile(
 			`${registryBaseUrl}${image.path}/blobs/${layer.digest}`,
-			path.join(folder, file),
+			fullPath,
 			buildHeaders(layer.mediaType, token),
 			allowInsecure,
 			cacheFolder,
 		);
+		const actualDigest = "sha256:" + (await fileutil.calculateHash(fullPath));
+		if (actualDigest !== layer.digest) {
+			throw new Error(
+				`Downloaded layer ${layer.digest} has wrong content digest ${actualDigest}` +
+					(cacheFolder ? " (possibly a corrupt layer cache entry)" : ""),
+			);
+		}
 		return file;
 	}
 
@@ -365,7 +392,7 @@ export async function createRegistry(
 	) {
 		const image = parseImage(imageStr);
 		const manifestFile = path.join(folder, "manifest.json");
-		const manifest = (await fse.readJson(manifestFile)) as Manifest;
+		const manifest = await fileutil.readJson<Manifest>(manifestFile);
 		logger.info("Checking layer status...");
 		const layerStatus = await Promise.all(
 			manifest.layers.map(async (l) => {
@@ -465,6 +492,15 @@ export function parseFullImageUrl(imageStr: string): { registry: string; image: 
 			registry: DEFAULT_DOCKER_REGISTRY,
 			image: rest.join("/"),
 		};
+	}
+	// The first segment must look like a registry host (contain a "." for a domain
+	// or ":" for a host:port) and there must be an image path after it. Otherwise
+	// e.g. `--from node:alpine` would produce a bogus `https://node:alpine/v2/`.
+	if (rest.length === 0 || (!registry.includes(".") && !registry.includes(":"))) {
+		throw new Error(
+			`Invalid registry/image '${imageStr}'. Expected a registry host, e.g. 'docker.io/library/node:alpine' or ` +
+				`'registry.example.com/app:tag'. For an image without a registry host, use --fromImage/--toImage instead.`,
+		);
 	}
 	return {
 		registry: `https://${registry}/v2/`,

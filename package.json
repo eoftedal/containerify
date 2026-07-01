@@ -1,6 +1,6 @@
 {
 	"name": "containerify",
-	"version": "3.5.1",
+	"version": "3.6.0",
 	"description": "Build node.js docker images without docker",
 	"main": "./lib/cli.js",
 	"scripts": {
@@ -9,8 +9,9 @@
 		"lint": "eslint . --ext .ts --fix",
 		"typecheck": "tsc --noEmit",
 		"watch": "tsc --watch",
-		"check": "npm run lint && npm run typecheck",
-		"format": "prettier -w src",
+		"check": "npm run lint && npm run typecheck && prettier --check .",
+		"format": "prettier -w .",
+		"format:check": "prettier --check .",
 		"dev": "tsc --watch",
 		"integrationTest": "cd tests/integration/ && ./test.sh",
 		"registryTest": "cd tests/localtest/ && ./test.sh && ./test-insecure.sh",
@@ -36,16 +37,16 @@
 		"container",
 		"image"
 	],
+	"engines": {
+		"node": ">=22"
+	},
 	"dependencies": {
 		"commander": "^13.1.0",
-		"fs-extra": "^11.3.2",
 		"tar": "^7.5.7"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.1",
 		"@eslint/js": "^10.0.1",
-		"@types/fs-extra": "^11.0.4",
-		"@types/minizlib": "^2.1.7",
 		"@types/node": "^22.13.9",
 		"@types/tar": "^6.1.13",
 		"@typescript-eslint/eslint-plugin": "^8.26.0",

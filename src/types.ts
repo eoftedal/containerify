@@ -17,7 +17,7 @@ export type Index = {
 	mediaType: string;
 	schemaVersion: string;
 	manifests: Array<IndexManifest>;
-	annotations?: Map<string, string>;
+	annotations?: Record<string, string>;
 };
 
 export type IndexManifest = Descriptor & {
@@ -117,6 +117,7 @@ export type Options = {
 		entrypoint?: string;
 	};
 	writeDigestTo?: string;
+	writePrefixedDigestTo?: string;
 	healthcheckCmd?: string;
 	healthcheckInterval?: string;
 	healthcheckTimeout?: string;

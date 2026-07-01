@@ -1,0 +1,6 @@
+{
+	"fromImage": "node:alpine",
+	"toImage": "containerify:autodetect",
+	"customContent": ["dummy.txt"],
+	"labels": { "autodetect": "yes" }
+}

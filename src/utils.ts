@@ -41,7 +41,7 @@ export function getPreferredPlatform(platform?: string): Platform {
 		windows: "windows",
 	} as const;
 
-	const targetOS = Object.entries(OS_MAPPING).find(([k]) => k == os)?.[1];
+	const targetOS = OS_MAPPING[os as keyof typeof OS_MAPPING];
 	if (targetOS == undefined) {
 		throw new Error(`Platform ${os} not supported. Supported platforms are '${Object.keys(OS_MAPPING)}`);
 	}
@@ -57,9 +57,12 @@ export function getPreferredPlatform(platform?: string): Platform {
 		amd64: "amd64",
 		arm: "arm",
 		arm64: "arm64",
+		ppc64le: "ppc64le",
+		s390x: "s390x",
+		riscv64: "riscv64",
 	} as const;
 
-	const targetArch = Object.entries(ARCH_MAPPING).find(([k]) => k == arch)?.[1];
+	const targetArch = ARCH_MAPPING[arch as keyof typeof ARCH_MAPPING];
 	if (targetArch == undefined) {
 		throw new Error(`Architecture ${arch} not supported. Supported architectures are '${Object.keys(ARCH_MAPPING)}'.`);
 	}

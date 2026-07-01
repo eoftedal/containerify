@@ -1,39 +1,57 @@
 import * as tar from "tar";
 import type { WriteEntry } from "tar";
 import { promises as fs } from "fs";
-import * as fse from "fs-extra";
 import * as fss from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
-import { Gunzip } from "minizlib";
+import { createGunzip } from "node:zlib";
 
 import * as fileutil from "./fileutil";
 import logger from "./logger";
 import { Config, HealthCheck, Layer, Manifest, ManifestDescriptor, Options } from "./types";
-import { getManifestLayerType, getLayerTypeFileEnding, unique } from "./utils";
+import { getManifestLayerType, getLayerTypeFileEnding, getHash, unique } from "./utils";
 import { VERSION } from "./version";
 
 const depLayerPossibles = ["package.json", "package-lock.json", "node_modules"];
 
 const ignore = [".git", ".gitignore", ".npmrc", ".DS_Store", "npm-debug.log", ".svn", ".hg", "CVS"];
 
-function createOnWriteEntry(layerOwner?: string) {
-	if (!layerOwner) return undefined;
-	// We use onWriteEntry to overwrite uid and gid in the tar archive
+function createOnWriteEntry(options: Options) {
+	if (!options.layerOwner) return undefined;
 	// Format is already validated in cli.ts to be "gid:uid"
-	const parts = layerOwner.split(":");
+	const parts = options.layerOwner.split(":");
 	const gid = parseInt(parts[0], 10);
 	const uid = parseInt(parts[1], 10);
+	// node-tar builds the entry header from `entry.stat` (onWriteEntry runs before
+	// entry.header exists), so we mutate the stat here. With layerOwner set the
+	// archive is non-portable, which means atime/ctime get written (into a PAX
+	// header) from the file's real - and therefore non-deterministic - stat. Pin
+	// atime/ctime/mtime so builds stay reproducible, while honoring the timestamp
+	// options for mtime instead of unconditionally forcing epoch (which used to
+	// silently discard --setTimeStamp / --preserveTimeStamp).
+	const stamp = options.setTimeStamp ? new Date(options.setTimeStamp) : undefined;
+	const forceEpoch = !options.setTimeStamp && !options.preserveTimeStamp;
 	return (entry: WriteEntry) => {
-		if (entry.header) {
-			entry.header.uid = uid;
-			entry.header.gid = gid;
-			entry.header.uname = "";
-			entry.header.gname = "";
-			// Set all timestamps to epoch to match original behavior
-			entry.header.atime = new Date(0);
-			entry.header.mtime = new Date(0);
-			entry.header.ctime = new Date(0);
+		if (!entry.stat) return;
+		entry.stat.uid = uid;
+		entry.stat.gid = gid;
+		entry.myuser = ""; // force an empty uname regardless of the building user
+		if (forceEpoch) {
+			const epoch = new Date(0);
+			entry.mtime = epoch;
+			entry.stat.mtime = epoch;
+			entry.stat.atime = epoch;
+			entry.stat.ctime = epoch;
+		} else if (stamp) {
+			entry.mtime = stamp;
+			entry.stat.mtime = stamp;
+			entry.stat.atime = stamp;
+			entry.stat.ctime = stamp;
+		} else {
+			// --preserveTimeStamp: keep the original mtime, but pin atime/ctime to it
+			// so the (non-portable) archive stays reproducible.
+			entry.stat.atime = entry.stat.mtime;
+			entry.stat.ctime = entry.stat.mtime;
 		}
 	};
 }
@@ -49,22 +67,10 @@ function calculateHashOfBuffer(buf: Buffer): string {
 	return hash.digest("hex");
 }
 
-function calculateHash(path: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const hash = crypto.createHash("sha256");
-		const stream = fss.createReadStream(path);
-		stream.on("error", (err) => reject(err));
-		stream.on("data", (chunk) => hash.update(chunk));
-		stream.on("end", () => resolve(hash.digest("hex")));
-	});
-}
-
 function copySync(src: string, dest: string, preserveTimestamps: boolean) {
-	const copyOptions = { overwrite: true, dereference: true, preserveTimestamps: preserveTimestamps };
-	const destFolder = dest.substring(0, dest.lastIndexOf("/"));
 	logger.debug(`Copying ${src} to ${dest}`);
-	fse.ensureDirSync(destFolder);
-	fse.copySync(src, dest, copyOptions);
+	fss.mkdirSync(path.dirname(dest), { recursive: true });
+	fss.cpSync(src, dest, { recursive: true, dereference: true, force: true, preserveTimestamps });
 }
 
 function addEmptyLayer(config: Config, options: Options, operation: string, action: (config: Config) => void) {
@@ -80,12 +86,13 @@ function addEmptyLayer(config: Config, options: Options, operation: string, acti
 async function getHashOfUncompressed(file: string): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const hash = crypto.createHash("sha256");
-		const gunzip = new Gunzip({});
+		const gunzip = createGunzip();
 		gunzip.on("data", (chunk) => hash.update(chunk));
 		gunzip.on("end", () => resolve(hash.digest("hex")));
 		gunzip.on("error", (err) => reject(err));
 		fss
 			.createReadStream(file)
+			.on("error", (err) => reject(err))
 			.pipe(gunzip)
 			.on("error", (err) => reject(err));
 	});
@@ -123,7 +130,7 @@ async function addDataLayer(
 		{
 			...tarDefaultConfig,
 			...{
-				onWriteEntry: createOnWriteEntry(options.layerOwner),
+				onWriteEntry: createOnWriteEntry(options),
 				portable: !options.layerOwner,
 				prefix: "/",
 				cwd: buildDir,
@@ -135,9 +142,9 @@ async function addDataLayer(
 		},
 		filesToTar,
 	);
-	const fhash = await calculateHash(layerFile);
+	const fhash = await fileutil.calculateHash(layerFile);
 	const finalName = path.join(todir, fhash + ".tar.gz");
-	await fse.move(layerFile, finalName);
+	await fs.rename(layerFile, finalName);
 	manifest.layers.push({
 		mediaType: getManifestLayerType(manifest),
 		size: await fileutil.sizeOf(finalName),
@@ -155,8 +162,8 @@ async function addDataLayer(
 async function copyLayers(fromdir: string, todir: string, layers: Array<Layer>) {
 	await Promise.all(
 		layers.map(async (layer) => {
-			const file = layer.digest.split(":")[1] + getLayerTypeFileEnding(layer);
-			await fse.copy(path.join(fromdir, file), path.join(todir, file));
+			const file = getHash(layer.digest) + getLayerTypeFileEnding(layer);
+			await fs.copyFile(path.join(fromdir, file), path.join(todir, file));
 		}),
 	);
 }
@@ -164,11 +171,8 @@ async function copyLayers(fromdir: string, todir: string, layers: Array<Layer>) 
 function parseCommandLineToParts(entrypoint: string) {
 	return entrypoint
 		.split('"')
-		.map((p, i) => {
-			if (i % 2 == 1) return [p];
-			return p.split(" ");
-		})
-		.reduce((a, b) => a.concat(b), [])
+		.map((p, i) => (i % 2 == 1 ? [p] : p.split(" ")))
+		.flat()
 		.filter((a) => a != "");
 }
 
@@ -271,10 +275,13 @@ async function addHealthcheckLayer(options: Options, config: Config) {
 
 async function addEnvsLayer(options: Options, config: Config) {
 	if (options.envs.length > 0) {
+		// Keep old environment variables. Compute the merged list once from the
+		// base Env (which may be missing on some base configs) and assign it to
+		// both config and container_config.
+		const mergedEnv = unique([...(config.config.Env ?? []), ...options.envs]);
 		addEmptyLayer(config, options, `ENV ${JSON.stringify(options.envs)}`, (config) => {
-			// Keep old environment variables
-			config.config.Env = unique([...config.config.Env, ...options.envs]);
-			config.container_config.Env = unique([...config.config.Env, ...options.envs]);
+			config.config.Env = mergedEnv;
+			config.container_config.Env = mergedEnv;
 		});
 	}
 }
@@ -286,9 +293,11 @@ async function addLayers(
 	options: Options,
 ): Promise<ManifestDescriptor> {
 	logger.info("Parsing image ...");
-	const manifest = await fse.readJson(path.join(fromdir, "manifest.json"));
-	const config = await fse.readJson(path.join(fromdir, "config.json"));
-	config.container_config = config.container_config || {};
+	const manifest = await fileutil.readJson<Manifest>(path.join(fromdir, "manifest.json"));
+	const config = await fileutil.readJson<Config>(path.join(fromdir, "config.json"));
+	config.container_config = config.container_config || ({} as Config["container_config"]);
+	config.config = config.config || ({} as Config["config"]);
+	config.history = config.history || [];
 
 	logger.info("Adding new layers...");
 	await copyLayers(fromdir, todir, manifest.layers);
@@ -306,7 +315,9 @@ async function addLayers(
 	const manifestBuffer = Buffer.from(manifestJson, "utf-8");
 	return {
 		mediaType: manifest.mediaType,
-		digest: calculateHashOfBuffer(manifestBuffer),
+		// Return the digest with the sha256: prefix, consistent with Descriptor
+		// everywhere else. The legacy --writeDigestTo strips it at the write site.
+		digest: "sha256:" + calculateHashOfBuffer(manifestBuffer),
 		size: manifestBuffer.byteLength,
 	};
 }

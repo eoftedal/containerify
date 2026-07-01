@@ -24,7 +24,7 @@ There is no unit-test framework. "Tests" are bash scripts that exercise the buil
 
 The pipeline lives in [src/cli.ts](src/cli.ts) `run()` and flows in one direction:
 
-1. **`cli.ts`** — all option parsing (commander), config-file merging, and validation. Options can come from CLI flags, a `containerify.json` config file (`--file`, auto-detected in `--folder`), or both (CLI overrides file). `exitWithErrorIf` enforces mutually-exclusive flags and required fields. Everything downstream receives a fully-resolved `Options` object. The `nonDefaults` field tracks which of user/workdir/entrypoint were *explicitly* set, which matters for `--customContent` (see below).
+1. **`cli.ts`** — all option parsing (commander), config-file merging, and validation. Options can come from CLI flags, a `containerify.json` config file (`--file`, auto-detected in `--folder`), or both (CLI overrides file). `exitWithErrorIf` enforces mutually-exclusive flags and required fields. Everything downstream receives a fully-resolved `Options` object. The `nonDefaults` field tracks which of user/workdir/entrypoint were _explicitly_ set, which matters for `--customContent` (see below).
 2. **`registry.ts`** `createRegistry(...).download()` — pulls the base image manifest/config/layers into a temp `from/` dir. Handles Docker Hub token auth, GitLab tokens, multi-arch index → platform selection (`pickManifest`), and a `--layerCacheFolder` cache.
 3. **`appLayerCreator.ts`** `addLayers()` — the core logic. Copies base layers into `to/`, then appends new layers and rewrites config + manifest. Returns the final manifest descriptor (digest/size).
 4. **Exporters** — `registry.ts` `.upload()` (push, with optional cross-mount), `tarExporter.ts` (`--toTar`), `dockerExporter.ts` (`--toDocker`, shells out to the `docker` CLI).
@@ -33,7 +33,7 @@ The pipeline lives in [src/cli.ts](src/cli.ts) `run()` and flows in one directio
 
 Normal node app builds add, in order: empty config layers (WORKDIR, ENTRYPOINT, USER, ENV, LABELS) then two data layers — **dependencies** (`package.json`, `package-lock.json`, `node_modules`) and **app** (everything else). Splitting deps from app code keeps the dependency layer cacheable across builds. The `ignore` list (`.git`, `.DS_Store`, etc.) is filtered out.
 
-`--customContent` switches to a different path: it skips the node deps/app layers entirely and adds only the specified content, and it only sets WORKDIR/ENTRYPOINT/USER if they were *explicitly* provided (via `nonDefaults`) — so you can drop built assets into e.g. an nginx base without clobbering its runtime config. `--extraContent` adds extra layers on top of either path.
+`--customContent` switches to a different path: it skips the node deps/app layers entirely and adds only the specified content, and it only sets WORKDIR/ENTRYPOINT/USER if they were _explicitly_ provided (via `nonDefaults`) — so you can drop built assets into e.g. an nginx base without clobbering its runtime config. `--extraContent` adds extra layers on top of either path.
 
 ### Reproducible builds
 
