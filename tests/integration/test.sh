@@ -16,11 +16,13 @@ mkdir -p tmp/v7/content/
 mkdir -p tmp/v8/content/
 mkdir -p tmp/v9/content/
 mkdir -p tmp/v10/content/
+mkdir -p tmp/v1oci
+mkdir -p tmp/v2oci
 mkdir -p tmp/layercache
 
 echo "Building image 1..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v1.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose  --writeDigestTo tmp/digest1 --writePrefixedDigestTo tmp/pdigest1 >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v1.tar --toOciLayout tmp/v1-oci.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose  --writeDigestTo tmp/digest1 --writePrefixedDigestTo tmp/pdigest1 >/dev/null
 
 cat tmp/digest1
 echo ""
@@ -28,7 +30,7 @@ echo ""
 
 echo "Building image 2..."
 
-../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v2.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose --writeDigestTo tmp/digest2 >/dev/null
+../../lib/cli.js --fromImage node:alpine --toImage containerify:demo-app --folder app --toTar tmp/v2.tar --toOciLayout tmp/v2-oci.tar --setTimeStamp "2023-03-07T12:53:10.471Z" --layerCacheFolder tmp/layercache --verbose --writeDigestTo tmp/digest2 >/dev/null
 cat tmp/digest2
 echo ""
 echo ""
@@ -86,6 +88,8 @@ tar -xf tmp/v7.tar -C tmp/v7/content/
 tar -xf tmp/v8.tar -C tmp/v8/content/
 tar -xf tmp/v9.tar -C tmp/v9/content/
 tar -xf tmp/v10.tar -C tmp/v10/content/
+tar -xf tmp/v1-oci.tar -C tmp/v1oci
+tar -xf tmp/v2-oci.tar -C tmp/v2oci
 
 jqscript='if (.config.Entrypoint == ["npm", "start"]) then true else false end'
 
@@ -225,6 +229,60 @@ if echo "$years" | grep -q '1970'; then
 fi
 if ! echo "$years" | grep -q '2023'; then
   echo "ERROR: expected layer entry mtimes in 2023 (from --setTimeStamp), got years: $years";
+  exit 1;
+fi
+
+echo "Checking oci-layout marker file ..."
+if [[ "$(cat tmp/v1oci/oci-layout)" != '{"imageLayoutVersion":"1.0.0"}' ]]; then
+  echo "ERROR: unexpected oci-layout content: $(cat tmp/v1oci/oci-layout)";
+  exit 1;
+fi
+
+echo "Checking index.json structure and ref.name annotation ..."
+idx_mtype=$(jq -r '.manifests[0].mediaType' tmp/v1oci/index.json)
+if [[ "$idx_mtype" != "application/vnd.oci.image.manifest.v1+json" ]]; then
+  echo "ERROR: index.json manifest entry has wrong mediaType: $idx_mtype";
+  exit 1;
+fi
+refname=$(jq -r '.manifests[0].annotations["org.opencontainers.image.ref.name"]' tmp/v1oci/index.json)
+if [[ "$refname" != "containerify:demo-app" ]]; then
+  echo "ERROR: expected ref.name annotation containerify:demo-app, got: $refname";
+  exit 1;
+fi
+
+echo "Checking manifest blob is genuinely OCI-typed regardless of source registry format ..."
+manifestDigest=$(jq -r '.manifests[0].digest' tmp/v1oci/index.json)
+manifestHex=${manifestDigest#sha256:}
+manifestBlob="tmp/v1oci/blobs/sha256/$manifestHex"
+if [[ ! -f "$manifestBlob" ]]; then
+  echo "ERROR: manifest blob $manifestBlob not found";
+  exit 1;
+fi
+mtype=$(jq -r '.mediaType' "$manifestBlob")
+cfgtype=$(jq -r '.config.mediaType' "$manifestBlob")
+if [[ "$mtype" != "application/vnd.oci.image.manifest.v1+json" || "$cfgtype" != "application/vnd.oci.image.config.v1+json" ]]; then
+  echo "ERROR: manifest/config mediaType not OCI: $mtype / $cfgtype";
+  exit 1;
+fi
+badLayerTypes=$(jq -r '.layers[].mediaType' "$manifestBlob" | grep -v -E '^application/vnd\.oci\.image\.layer\.v1\.tar(\+gzip)?$' || true)
+if [[ -n "$badLayerTypes" ]]; then
+  echo "ERROR: found non-OCI layer mediaType(s): $badLayerTypes";
+  exit 1;
+fi
+
+echo "Checking every blob's filename matches the sha256 of its content ..."
+for f in tmp/v1oci/blobs/sha256/*; do
+  name=$(basename "$f")
+  actual=$(shasum -a 256 "$f" | awk '{print $1}')
+  if [[ "$actual" != "$name" ]]; then
+    echo "ERROR: blob $f has content hash $actual, filename says $name";
+    exit 1;
+  fi
+done
+
+echo "Checking --toOciLayout output is reproducible (v1-oci == v2-oci) ..."
+if ! cmp -s tmp/v1-oci.tar tmp/v2-oci.tar; then
+  echo "ERROR: --toOciLayout output differs between two identical builds";
   exit 1;
 fi
 

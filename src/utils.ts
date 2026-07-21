@@ -95,6 +95,21 @@ export function getLayerTypeFileEnding(layer: Layer) {
 	}
 }
 
+const DOCKER_TO_OCI_MEDIA_TYPE: Record<string, string> = {
+	[DockerV2.manifest]: OCI.manifest,
+	[DockerV2.config]: OCI.config,
+	[DockerV2.layer.tar]: OCI.layer.tar,
+	[DockerV2.layer.gzip]: OCI.layer.gzip,
+};
+const KNOWN_OCI_MEDIA_TYPES = new Set([OCI.manifest, OCI.config, OCI.layer.tar, OCI.layer.gzip]);
+
+export function toOciMediaType(mediaType: string): string {
+	if (KNOWN_OCI_MEDIA_TYPES.has(mediaType)) return mediaType;
+	const mapped = DOCKER_TO_OCI_MEDIA_TYPE[mediaType];
+	if (mapped) return mapped;
+	throw new Error(`Media type ${mediaType} not recognized as OCI or Docker v2.`);
+}
+
 export function getHash(digest: string): string {
 	return digest.split(":")[1];
 }

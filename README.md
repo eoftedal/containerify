@@ -67,6 +67,7 @@ Options:
   --toToken <token>               Optional: Authentication token for target registry
   --toTar <path>                  Optional: Export to tar file
   --toDocker                      Optional: Export to local docker registry
+  --toOciLayout <path>            Optional: Export to a spec-compliant OCI Image Layout, packed as a single tar file
   --registry <path>               Optional: Convenience argument for setting both from and to registry
   --platform <platform>           Optional: Preferred platform, e.g. linux/amd64 or arm64
   --token <path>                  Optional: Convenience argument for setting token for both from and to registry

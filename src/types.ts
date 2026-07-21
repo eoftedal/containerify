@@ -91,6 +91,7 @@ export type Options = {
 	toToken?: string;
 	toTar?: string;
 	toDocker?: boolean;
+	toOciLayout?: string;
 	registry?: string;
 	platform: string;
 	token?: string;

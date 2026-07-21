@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.1.0] - 2026-07-21
+
+### Added
+
+- `--toOciLayout <path>` to export a spec-compliant [OCI Image Layout](https://github.com/opencontainers/image-spec/blob/main/image-layout.md), packed as a single tar file (the convention `skopeo`/`crane` call `oci-archive`). Unlike `--toTar`/`--toDocker`, this always emits genuinely OCI-typed media types in `index.json` and the `blobs/sha256/*` manifest, even when the pulled base image used Docker v2 media types.
+
 ## [4.0.0] - 2026-07-02
 
 ### Breaking changes

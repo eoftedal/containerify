@@ -9,6 +9,7 @@ import { DEFAULT_DOCKER_REGISTRY, createRegistry, parseFullImageUrl } from "./re
 import appLayerCreator from "./appLayerCreator";
 import dockerExporter from "./dockerExporter";
 import tarExporter from "./tarExporter";
+import ociLayoutExporter from "./ociLayoutExporter";
 
 import logger from "./logger";
 import { InsecureRegistrySupport, Options } from "./types";
@@ -47,6 +48,7 @@ program
 	.option("--toToken <token>", "Optional: Authentication token for target registry")
 	.option("--toTar <path>", "Optional: Export to tar file")
 	.option("--toDocker", "Optional: Export to local docker registry")
+	.option("--toOciLayout <path>", "Optional: Export to a spec-compliant OCI Image Layout, packed as a single tar file")
 	.option("--registry <path>", "Optional: Convenience argument for setting both from and to registry")
 	.option("--platform <platform>", "Optional: Preferred platform) e.g. linux/amd64 or arm64")
 	.option("--token <path>", "Optional: Convenience argument for setting token for both from and to registry")
@@ -349,8 +351,8 @@ exitWithErrorIf(!options.folder, "--folder must be specified");
 exitWithErrorIf(!options.fromImage, "--fromImage must be specified");
 exitWithErrorIf(!options.toImage, "--toImage must be specified");
 exitWithErrorIf(
-	!options.toRegistry && !options.toTar && !options.toDocker,
-	"Must specify either --toTar, --toRegistry or --toDocker",
+	!options.toRegistry && !options.toTar && !options.toDocker && !options.toOciLayout,
+	"Must specify either --toTar, --toRegistry, --toDocker or --toOciLayout",
 );
 exitWithErrorIf(
 	!!options.toRegistry && !options.toToken && !options.allowNoPushAuth,
@@ -438,6 +440,9 @@ async function run(options: Options) {
 		}
 		if (options.toTar) {
 			await tarExporter.saveToTar(todir, tmpdir, options.toTar, repoTags, options);
+		}
+		if (options.toOciLayout) {
+			await ociLayoutExporter.saveToOciLayout(todir, tmpdir, options.toOciLayout, repoTags, options);
 		}
 		if (options.toRegistry) {
 			const toRegistry = await createRegistry(
