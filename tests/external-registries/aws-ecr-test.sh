@@ -10,3 +10,7 @@ echo $TOKEN
 
 printf "* Running containerify to pull from and push result to AWS ECR ...\n"
 ../../lib/cli.js --verbose --fromImage node:alpine --toRegistry https://$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/v2/ --toImage containerify-test:latest --folder . --customContent customContent --setTimeStamp "2024-01-15T20:00:00.000Z" --toToken "Basic $TOKEN"
+
+printf "* Verifying the pushed image can be pulled with docker ...\n"
+aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
+docker pull "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/containerify-test:latest"
